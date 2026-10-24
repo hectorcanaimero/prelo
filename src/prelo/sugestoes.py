@@ -3,16 +3,28 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
 from prelo.interfaces import Buscador, Modelo
+from prelo.juizo import Juiz, JuizIndisponivel
+
+log = logging.getLogger(__name__)
 
 AGENTE_NOME = "sugestoes"
 N_TEMAS = 3
 N_CANDIDATOS = 5  # se piden más de 3 para poder descartar publicados o con link inventado
+N_CANDIDATOS_JUIZ = 8  # con Jev se piden más: se puntúan y se queda con los 3 mejores
+PESOS = {"interes": 0.5, "novedad": 0.3, "encaje": 0.2}
+CRITERIOS = {
+    "interes": "¿Cuánto interesa este tema a la audiencia de Héctor (ingenieros de software que construyen con IA)?",
+    "novedad": "¿Cuán nuevo es este tema frente a los publicados en los últimos 30 días (0 = ya cubierto)?",
+    "encaje": "¿Cuánto encaja con los temas de Héctor: agentes, ingeniería de software e IA aplicada?",
+}
+NIVELES = ["nada", "poco", "algo", "bastante", "mucho"]  # score 0..4
 DIAS_COMMITS = 14
 DIAS_PUBLICADOS = 30
 CONSULTA_ESTUDIO = "ruta de estudio ingeniería de agentes e IA"
@@ -68,6 +80,33 @@ def _sin_cercas(crudo: str) -> str:
     return texto
 
 
+def puntuar(
+    candidatos: Sequence[dict[str, str]], juiz: Juiz, recientes: Sequence[str], post_id: str = ""
+) -> list[dict[str, float]]:
+    """Un Score de Jev por candidato y dimensión, todas las preguntas en una llamada (`JuizIndisponivel` si falla)."""
+    estado = {
+        "candidatos": [{"id": i, "tema": c["tema"], "origem": c["origem"]} for i, c in enumerate(candidatos)],
+        "publicados_30_dias": list(recientes),
+    }
+    preguntas = {
+        f"{i}_{dim}": {"type": "score", "instructions": f"Candidato {i}. {texto}", "criteria": NIVELES}
+        for i in range(len(candidatos))
+        for dim, texto in CRITERIOS.items()
+    }
+    r = juiz.avaliar(estado, preguntas, post_id=post_id or None)
+    return [{dim: r.score(f"{i}_{dim}") for dim in CRITERIOS} for i in range(len(candidatos))]
+
+
+def ordenar(
+    candidatos: Sequence[dict[str, str]], puntos: Sequence[dict[str, float]], pesos: dict[str, float] | None = None
+) -> list[dict[str, str]]:
+    """Los `N_TEMAS` de mayor suma ponderada; no llama a Jev, así que los pesos se pueden cambiar sobre los mismos puntos."""
+    pesos = pesos or PESOS
+    total = [sum(pesos.get(d, 0) * p[d] for d in CRITERIOS) for p in puntos]
+    mejores = sorted(range(len(candidatos)), key=lambda i: -total[i])[:N_TEMAS]
+    return [candidatos[i] for i in mejores]
+
+
 def sugerir(
     *,
     modelo: Modelo,
@@ -76,8 +115,13 @@ def sugerir(
     publicados: Sequence[tuple[str, datetime]] = (),
     ahora: datetime | None = None,
     post_id: str = "",
+    juiz: Juiz | None = None,
+    pesos: dict[str, float] | None = None,
 ) -> list[dict[str, str]]:
-    """Devuelve exactamente 3 `{"tema", "origem", "link"}`; `ValueError` si el modelo no da 3 válidos."""
+    """Devuelve exactamente 3 `{"tema", "origem", "link"}`; `ValueError` si el modelo no da 3 válidos.
+
+    Con `juiz` el modelo propone 8 y Jev los puntúa; sin él (o con `JuizIndisponivel`) se toman los 3 primeros.
+    """
     ahora = ahora or datetime.now(UTC)
     entradas: list[tuple[str, str, str]] = []  # (tipo, texto, url)
     entradas += [("commit", c["mensaje"], c["url"]) for c in commits(ahora - timedelta(days=DIAS_COMMITS))]
@@ -90,7 +134,9 @@ def sugerir(
     vetados = {t.casefold() for t in recientes}
 
     datos = "\n".join(f"[{tipo}] {_limpar(texto)} ({_limpar(url)})" for tipo, texto, url in entradas)
-    prompt = PROMPT.format(n=N_CANDIDATOS, publicados=json.dumps(recientes, ensure_ascii=False), datos=datos)
+    prompt = PROMPT.format(
+        n=N_CANDIDATOS_JUIZ if juiz else N_CANDIDATOS, publicados=json.dumps(recientes, ensure_ascii=False), datos=datos
+    )
     crudo = modelo.gerar(prompt, agente=AGENTE_NOME, post_id=post_id)
     try:
         candidatos = json.loads(_sin_cercas(crudo))
@@ -107,4 +153,9 @@ def sugerir(
             out.append({"tema": c["tema"], "origem": c["origem"], "link": c["link"]})
     if len(out) < N_TEMAS:
         raise ValueError(f"el modelo devolvió {len(out)} temas válidos, se necesitan {N_TEMAS}")
+    if juiz:
+        try:
+            return ordenar(out, puntuar(out, juiz, recientes, post_id), pesos)
+        except JuizIndisponivel:
+            log.warning("Jev no disponible: sugerencias sin ranking")
     return out[:N_TEMAS]
