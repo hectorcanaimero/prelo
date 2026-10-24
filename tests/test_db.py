@@ -3,11 +3,12 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import psycopg
+import pytest
 
 from prelo.db.conexao import conectar
 from prelo.db.migrar import aplicar_migracoes
 from prelo.db.repositorio import RepositorioPg
-from prelo.interfaces import Custo, Peca, Post, Repositorio
+from prelo.interfaces import Custo, Peca, Post, Publicacao, Repositorio
 
 
 def _id() -> str:
@@ -66,3 +67,32 @@ def test_costos_por_agente(pg_url):
         assert c["redator"].usd == Decimal("0.15") and c["redator"].tokens_entrada == 200
         assert c["investigador"].usd == Decimal("0.02")
         assert sum(v.usd for v in c.values()) == Decimal("0.17")
+
+
+def test_atualizar_post_cambia_estado(pg_url):
+    with conectar(pg_url) as conn:
+        repo = RepositorioPg(conn)
+        post = _post(repo)
+        repo.atualizar_post(post.id, estado="redigindo")
+        assert repo.ler_post(post.id).estado == "redigindo"
+
+
+def test_ler_peca_devuelve_la_pieza_y_falla_si_no_existe(pg_url):
+    with conectar(pg_url) as conn:
+        repo = RepositorioPg(conn)
+        peca = _peca(repo, _post(repo).id)
+        assert repo.ler_peca(peca.id) == peca
+        with pytest.raises(KeyError):
+            repo.ler_peca(_id())
+
+
+def test_registrar_publicacion(pg_url):
+    with conectar(pg_url) as conn:
+        repo = RepositorioPg(conn)
+        peca = _peca(repo, _post(repo).id)
+        pub = Publicacao(_id(), peca.id, "linkedin", "http://li/1", datetime.now(UTC), "urn:1")
+        repo.registrar_publicacao(pub)
+        row = conn.execute(
+            "SELECT peca_id::text, canal, url, id_externo FROM publicacoes WHERE id = %s", (pub.id,)
+        ).fetchone()
+        assert tuple(row.values()) == (peca.id, "linkedin", "http://li/1", "urn:1")
