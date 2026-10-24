@@ -84,6 +84,38 @@ def test_un_500_no_impide_guardar_las_demas_y_no_filtra_token():
 
 
 @respx.mock
+def test_linkedin_pagina_los_comentarios_hasta_una_pagina_corta():
+    respx.get(LI).mock(return_value=httpx.Response(200, json={"likesSummary": {"totalLikes": 1}}))
+    llena = [{"actor": f"a{i}", "message": {"text": "t"}} for i in range(LeitorLinkedin.PAGINA)]
+    ruta = respx.get(f"{LI}/comments").mock(
+        side_effect=[
+            httpx.Response(200, json={"elements": llena}),
+            httpx.Response(200, json={"elements": [{"actor": "ultimo", "message": {"text": "fin"}}]}),
+        ]
+    )
+    m = LeitorLinkedin(SecretStr(TOKEN)).ler(_pub("linkedin", 1, URN))
+    assert ruta.call_count == 2
+    assert ruta.calls[1].request.url.params["start"] == str(LeitorLinkedin.PAGINA)
+    assert len(m["comentarios"]) == LeitorLinkedin.PAGINA + 1
+    assert m["comentarios"][-1] == {"autor": "ultimo", "texto": "fin"}
+
+
+@respx.mock
+def test_instagram_escapa_el_id_externo():
+    ruta = respx.get(url__startswith=f"{IG}/a%2Fb").mock(return_value=httpx.Response(200, json={"like_count": 0}))
+    LeitorInstagram(SecretStr(TOKEN)).ler(_pub("instagram", 1, "a/b?x=1"))
+    assert ruta.called
+
+
+@respx.mock
+def test_fallo_sin_aviso_se_registra_en_el_log(caplog):
+    respx.get(url__startswith=IG).mock(return_value=httpx.Response(500))
+    repo = RepoMem([_pub("instagram", 1, "bad")])
+    assert coletar([LeitorInstagram(SecretStr(TOKEN))], repo) == 0
+    assert "p1" in caplog.text and TOKEN not in caplog.text
+
+
+@respx.mock
 def test_error_de_red_no_contiene_el_token():
     respx.get(url__startswith=IG).mock(side_effect=httpx.ConnectError(f"fallo https://x?access_token={TOKEN}"))
     with pytest.raises(ErroLectura) as e:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Protocol
 from urllib.parse import quote
 
@@ -9,6 +10,8 @@ import httpx
 from pydantic import SecretStr
 
 from prelo.interfaces import Aviso, Publicacao
+
+log = logging.getLogger(__name__)
 
 CANAIS = ("linkedin", "instagram")
 
@@ -77,7 +80,7 @@ class LeitorInstagram:
         self._http = _Http(token, client)
 
     def ler(self, publicacao: Publicacao) -> dict[str, Any]:
-        base = f"{self.URL}/{publicacao.id_externo}"
+        base = f"{self.URL}/{quote(publicacao.id_externo, safe='')}"
         reacoes = self._http.get(base, fields="like_count,comments_count").get("like_count", 0)
         comentarios: list[dict[str, str]] = []
         pagina = self._http.get(f"{base}/comments", fields="username,text")
@@ -104,8 +107,11 @@ def coletar(leitores: list[Leitor], repo: Any, aviso: Aviso | None = None) -> in
         try:
             m = leitor.ler(pub)
         except ErroLectura as exc:
+            texto = f"Métricas: no se pudo leer {pub.canal} {pub.id}: {exc}"
             if aviso:
-                aviso.avisar(f"Métricas: no se pudo leer {pub.canal} {pub.id}: {exc}")
+                aviso.avisar(texto)
+            else:
+                log.warning(texto)
             continue
         repo.salvar_metrica(pub.id, reacoes=m["reacoes"], comentarios=m["comentarios"])
         n += 1
