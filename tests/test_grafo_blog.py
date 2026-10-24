@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from test_grafo import Dobles, _pausado_en, _pecas
 
@@ -76,7 +77,7 @@ def test_deploy_con_url_genera_linkedin_con_url_blog():
     d, g, post_id = _iniciar()
     grafo.retomar(g, post_id, "aprovado")
 
-    grafo.retomar(g, post_id, "aprovado", url_blog=URL_BLOG)
+    grafo.retomar(g, post_id, url_blog=URL_BLOG)
 
     assert d.urls_linkedin == [URL_BLOG]
     assert _pausado_en(g, post_id) == ("aprovar",)
@@ -97,3 +98,25 @@ def test_pr_cerrado_sin_merge_termina_sin_derivados():
     [blog] = _pecas(d.repo, post_id)
     assert (blog.status, blog.decisao) == ("descartada", "descartar")
     assert d.repo.posts[post_id].estado == "descartado"
+
+
+def test_deploy_sin_url_falla_y_sigue_pausado_en_esperar_deploy():
+    d, g, post_id = _iniciar()
+    grafo.retomar(g, post_id, "aprovado")
+
+    with pytest.raises(ValueError, match="url_blog"):
+        grafo.retomar(g, post_id)
+
+    assert _pausado_en(g, post_id) == ("esperar_deploy",)
+    [blog] = _pecas(d.repo, post_id)
+    assert blog.status == "aprovada"
+    assert d.urls_linkedin == []
+
+
+def test_sin_abrir_pr_va_directo_a_los_derivados_como_en_f1():
+    d = DoblesBlog()
+    g = grafo.construir(replace(d.deps(), abrir_pr=None), InMemorySaver())
+    post_id = grafo.iniciar(g, "agentes", "editor")
+
+    assert _pausado_en(g, post_id) == ("aprovar",)
+    assert d.traducidos == []

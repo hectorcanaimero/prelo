@@ -80,7 +80,7 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     def depois_de_revisar(estado: _Estado) -> str:
         if estado["violacoes"] and estado["tentativas"] < MAX_TENTATIVAS:
             return "redigir"
-        return "traduzir" if deps.traduzir else "adaptar_linkedin"
+        return "traduzir" if deps.traduzir and deps.abrir_pr else "adaptar_linkedin"
 
     def traduzir(estado: _Estado) -> dict:
         # Traduce, abre el PR y crea la pieza aquí, no en `pr_blog`: al reanudar, `pr_blog` se re-ejecuta.
@@ -115,7 +115,9 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
 
     def esperar_deploy(estado: _Estado) -> dict:
         # Lo reanuda `deploy_blog` cuando la URL pública responde 200 (D10).
-        url_blog = interrupt({"url_pr": estado["url_pr"]})["url_blog"]
+        url_blog = interrupt({"url_pr": estado["url_pr"]}).get("url_blog")
+        if not url_blog:
+            raise ValueError("esperar_deploy necesita url_blog para reanudar")
         repo.atualizar_peca(estado["peca_blog_id"], status="publicada")
         return {"url_blog": url_blog}
 
@@ -212,8 +214,9 @@ def iniciar(grafo, tema: str, origem: Origem) -> str:
 
 
 def retomar(
-    grafo, post_id: str, decisao: Decisao, comentario: str | None = None, *, url_blog: str | None = None
+    grafo, post_id: str, decisao: Decisao | None = None, comentario: str | None = None, *, url_blog: str | None = None
 ) -> None:
-    """Reanuda el post pausado: `aprovar` (Slack), `pr_blog` (webhook) o `esperar_deploy` (`deploy_blog`, con URL)."""
+    """Reanuda el post pausado: `aprovar` (Slack) o `pr_blog` (webhook) con `decisao`; `esperar_deploy`
+    (`deploy_blog`) solo con `url_blog`."""
     resume = {"decisao": decisao, "comentario": comentario, "url_blog": url_blog}
     grafo.invoke(Command(resume=resume), config=_config(post_id))
