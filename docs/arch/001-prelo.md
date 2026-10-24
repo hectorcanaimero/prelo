@@ -277,7 +277,8 @@ class Dependencias:              # lo que recibe grafo.construir(deps, checkpoin
 
 - El token de LinkedIn caduca a los 60 días, *mitigation:* la agenda avisa en Slack 7 días antes y un fallo de
   publicación deja la pieza en `aprovada`, no la pierde.
-- La API de Instagram exige una cuenta Business o Creator vinculada a una página de Facebook (pregunta abierta),
+- La API de Instagram exige una cuenta Business o Creator. Se usa la *Instagram API with Instagram Login*
+  (`graph.instagram.com`), que no necesita página de Facebook; su token dura 60 días y hay que renovarlo,
   *mitigation:* F3 empieza por un esqueleto con publicador falso; el real se hace cuando esté la cuenta.
 - Langfuse v3 self-hosted pide ClickHouse y Redis y puede no caber en una EC2 pequeña, *mitigation:* medirlo en F4.4;
   si no cabe, Langfuse Cloud (plan gratis) detrás de las mismas variables.
