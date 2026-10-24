@@ -55,7 +55,8 @@ def commits_github(repos: Sequence[str], token: str) -> Callable[[datetime], lis
 
 def _limpar(texto: str) -> str:
     # el contenido externo no puede cerrar el delimitador
-    return texto.replace("</datos>", "").replace("<datos>", "")
+    # un solo paso sobre "<" y ">": no se puede reconstruir una etiqueta (p. ej. "</da<datos>tos>")
+    return texto.replace("<", "&lt;").replace(">", "&gt;")
 
 
 def sugerir(
