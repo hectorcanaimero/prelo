@@ -8,6 +8,11 @@ START → investigar → redigir → revisar ─┬─ ok o tentativas = 2 ─�
 
 No importa ningún cliente externo: todo llega por `Dependencias`. `thread_id` = `post_id` (FR-8).
 `agendar` solo marca la pieza `aprovada`; publicar es trabajo de la agenda (D9).
+
+Desde F2, si `Dependencias` trae `traduzir` y `abrir_pr`, entre `revisar` y los derivados va el blog:
+
+revisar ─► traduzir (abre el PR) → pr_blog ⏸ merge ─┬─ aprovado ─► esperar_deploy ⏸ url_blog ─► adaptar_linkedin …
+                                                    └─ descartar (PR cerrado sin merge) ─► END
 """
 
 from __future__ import annotations
@@ -31,6 +36,8 @@ class _Estado(EstadoPost, total=False):
 
     origem: Origem
     peca_id: str
+    peca_blog_id: str
+    url_pr: str
 
 
 def _texto(valor: Any) -> str:
@@ -73,7 +80,44 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     def depois_de_revisar(estado: _Estado) -> str:
         if estado["violacoes"] and estado["tentativas"] < MAX_TENTATIVAS:
             return "redigir"
-        return "adaptar_linkedin"
+        return "traduzir" if deps.traduzir else "adaptar_linkedin"
+
+    def traduzir(estado: _Estado) -> dict:
+        # Traduce, abre el PR y crea la pieza aquí, no en `pr_blog`: al reanudar, `pr_blog` se re-ejecuta.
+        post_id = estado["post_id"]
+        textos = deps.traduzir(estado["rascunho"]["es"], post_id=post_id)
+        url_pr = deps.abrir_pr(post_id, textos)
+        peca = Peca(
+            id=str(uuid.uuid4()),
+            post_id=post_id,
+            canal="blog",
+            conteudo=textos,
+            violacoes=estado["violacoes"],
+            status="pendente",
+        )
+        repo.criar_peca(peca)
+        repo.atualizar_post(post_id, estado="aguardando_merge")
+        return {"rascunho": textos, "peca_blog_id": peca.id, "url_pr": url_pr}
+
+    def pr_blog(estado: _Estado) -> Command:
+        # Lo reanuda el webhook de GitHub: "aprovado" si el PR se mergeó, "descartar" si se cerró sin merge.
+        resposta = interrupt({"peca_id": estado["peca_blog_id"], "url_pr": estado["url_pr"]})
+        decisao = resposta["decisao"]
+        if decisao == "aprovado":
+            repo.atualizar_peca(estado["peca_blog_id"], status="aprovada", decisao="aprovado")
+            repo.atualizar_post(estado["post_id"], estado="aguardando_deploy")
+            return Command(goto="esperar_deploy")
+        if decisao == "descartar":
+            repo.atualizar_peca(estado["peca_blog_id"], status="descartada", decisao="descartar")
+            repo.atualizar_post(estado["post_id"], estado="descartado")
+            return Command(goto=END)
+        raise ValueError(f"decisao desconocida en pr_blog: {decisao!r}")
+
+    def esperar_deploy(estado: _Estado) -> dict:
+        # Lo reanuda `deploy_blog` cuando la URL pública responde 200 (D10).
+        url_blog = interrupt({"url_pr": estado["url_pr"]})["url_blog"]
+        repo.atualizar_peca(estado["peca_blog_id"], status="publicada")
+        return {"url_blog": url_blog}
 
     def adaptar_linkedin(estado: _Estado) -> dict:
         conteudo = deps.adaptar["linkedin"](
@@ -124,6 +168,9 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     g.add_node("investigar", investigar)
     g.add_node("redigir", redigir)
     g.add_node("revisar", revisar)
+    g.add_node("traduzir", traduzir)
+    g.add_node("pr_blog", pr_blog, destinations=("esperar_deploy", END))
+    g.add_node("esperar_deploy", esperar_deploy)
     g.add_node("adaptar_linkedin", adaptar_linkedin)
     g.add_node("revisar_linkedin", revisar_linkedin)
     g.add_node("aprovar", aprovar, destinations=("agendar", "adaptar_linkedin", END))
@@ -131,7 +178,9 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     g.add_edge(START, "investigar")
     g.add_edge("investigar", "redigir")
     g.add_edge("redigir", "revisar")
-    g.add_conditional_edges("revisar", depois_de_revisar, ["redigir", "adaptar_linkedin"])
+    g.add_conditional_edges("revisar", depois_de_revisar, ["redigir", "traduzir", "adaptar_linkedin"])
+    g.add_edge("traduzir", "pr_blog")
+    g.add_edge("esperar_deploy", "adaptar_linkedin")
     g.add_edge("adaptar_linkedin", "revisar_linkedin")
     g.add_edge("revisar_linkedin", "aprovar")
     g.add_edge("agendar", END)
@@ -162,6 +211,9 @@ def iniciar(grafo, tema: str, origem: Origem) -> str:
     return post_id
 
 
-def retomar(grafo, post_id: str, decisao: Decisao, comentario: str | None = None) -> None:
-    """Reanuda el post pausado en `aprovar` con la decisión del editor."""
-    grafo.invoke(Command(resume={"decisao": decisao, "comentario": comentario}), config=_config(post_id))
+def retomar(
+    grafo, post_id: str, decisao: Decisao, comentario: str | None = None, *, url_blog: str | None = None
+) -> None:
+    """Reanuda el post pausado: `aprovar` (Slack), `pr_blog` (webhook) o `esperar_deploy` (`deploy_blog`, con URL)."""
+    resume = {"decisao": decisao, "comentario": comentario, "url_blog": url_blog}
+    grafo.invoke(Command(resume=resume), config=_config(post_id))
