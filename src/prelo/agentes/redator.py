@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from prelo.interfaces import Fonte, Modelo, Texto
 
@@ -17,15 +18,25 @@ Cita solo cifras que estén en las fuentes.
 Responde solo con JSON: {{"titulo": "...", "resumo": "...", "corpo": "..."}}"""
 
 
+def _limpia(s: str) -> str:
+    # NFR-4: una fuente no puede cerrar (ni abrir) el delimitador
+    return re.sub(r"<\s*/?\s*fonte\b[^>]*>?", "[delimitador eliminado]", s, flags=re.IGNORECASE)
+
+
 def _fonte(f: Fonte) -> str:
-    return f"<fonte>\nurl: {f['url']}\ntitulo: {f['titulo']}\n{f['trecho']}\n</fonte>"
+    u, t, r = (_limpia(f[k]) for k in ("url", "titulo", "trecho"))
+    return f"<fonte>\nurl: {u}\ntitulo: {t}\n{r}\n</fonte>"
 
 
 def redator(modelo: Modelo, tema: str, fontes: list[Fonte], feedback: str | None = None, *, post_id: str) -> Texto:
     fb = f"\nCorrige según este feedback:\n{feedback}\n" if feedback else ""
     prompt = PROMPT.format(tema=tema, fontes="\n".join(map(_fonte, fontes)), feedback=fb)
     s = modelo.gerar(prompt, agente="redator", post_id=post_id).strip()
+    bruto = s
     if s.startswith("```"):
-        s = s.split("\n", 1)[1].rsplit("```", 1)[0]
-    d = json.loads(s)
-    return Texto(titulo=d["titulo"], resumo=d["resumo"], corpo=d["corpo"])
+        s = s.partition("\n")[2].rsplit("```", 1)[0]
+    try:
+        d = json.loads(s)
+        return Texto(titulo=d["titulo"], resumo=d["resumo"], corpo=d["corpo"])
+    except (ValueError, KeyError, TypeError) as e:
+        raise ValueError(f"salida del redator no válida ({e!r}): {bruto[:500]!r}") from e
