@@ -123,7 +123,7 @@ pieza `aprovada` con `decisao = aprovado`; un borrador que siempre viola se rees
 deja la pieza `descartada` y no se aprueba nada; con `PostgresSaver` (fixture local sobre `TEST_DATABASE_URL`), construir un grafo nuevo
 tras la pausa y aprobar con él aprueba exactamente el texto que se pausó (FR-8).
 
-- **Model**: claude/claude-opus-4-7
+- **Model**: claude/claude-opus-5-5
 - **Estimate**: 4h
 - **Reason**: Flujo con interrupt/checkpointer y reintentos; diseño crítico.
 - **Dependencies**: F1.1.T4
@@ -150,7 +150,7 @@ Done when: these tests pass in `tests/test_interfaces.py` — un `Repositorio` e
 protocolo (comprobado con `typing.runtime_checkable` + `isinstance`); un `EstadoPost` de ejemplo con los tres idiomas
 pasa la comprobación de tipos de `pyright` o `mypy`; importar `interfaces` no importa ningún SDK externo.
 
-- **Model**: claude/claude-opus-4-7
+- **Model**: claude/claude-opus-5-5
 - **Estimate**: 1.5h
 - **Reason**: Contrato del que dependen todas las tareas paralelas; un error aquí se multiplica.
 - **Dependencies**: F1.1.T1
@@ -177,7 +177,7 @@ Done when: these tests pass in `tests/test_marca.py` — "trabajé en ACME" con 
 40%" sin fuente que contenga "40%" da `cifra_sem_fonte` y con ella no; "en 2024" se trata igual que una cifra; un
 texto limpio devuelve lista vacía; `carregar_regras` con `PRELO_BLOQUEIA` vacío no bloquea ningún nombre.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Lógica determinista con casos borde de normalización; standard con buenos tests.
 - **Dependencies**: F1.1.T4
@@ -247,7 +247,7 @@ aparece dentro de `<fonte>` y el prompt contiene la instrucción de tratarla com
 la salida del modelo se parsea a un `Texto` con los tres campos; el adaptador incluye `url_blog` cuando existe y no
 inventa un link cuando es `None`.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Prompts y parseo; la calidad real la miden las evals de F1.6.
 - **Dependencies**: F1.1.T4
@@ -275,7 +275,7 @@ los tres botones con el `value` correcto, las fuentes y el costo; una pieza con 
 y lista las violaciones; pulsar Aprobar llama a `retomar(post_id, "aprovado")`; enviar el modal de Editar llama a
 `retomar(post_id, "editar", comentario)`; Descartar llama a `retomar(post_id, "descartar")`.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 4h
 - **Reason**: Integración Bolt con bloques y modales; varios caminos pero sin diseño nuevo.
 - **Dependencies**: F1.1.T4
@@ -374,7 +374,7 @@ ella; `POST /posts` con el token correcto llama a `iniciar` y responde 202 con e
 uno incorrecto responde 401 y no llama a `iniciar`; un tema vacío responde 422; `montar_dependencias(settings, clientes_falsos)` devuelve unas `Dependencias` con todas sus claves y el
 adaptador `linkedin`; con dobles, un `/prelo` simulado termina en una pieza pendiente notificada en Slack.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 4h
 - **Reason**: Cableado de piezas ya probadas más un endpoint autenticado.
 - **Dependencies**: F1.1.T2, F1.1.T3, F1.2.T1, F1.3.T1, F1.3.T2, F1.3.T3, F1.4.T1, F1.5.T1, F1.5.T2

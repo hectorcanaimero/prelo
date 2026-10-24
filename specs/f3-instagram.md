@@ -34,7 +34,7 @@ Done when: these tests pass in `tests/test_grafo_carrossel.py`, con dobles — t
 pendientes, `linkedin` e `instagram`; aprobar una no aprueba la otra; descartar el carrusel no afecta a LinkedIn; la
 revisión de marca se aplica al texto de todas las láminas; y los tests de F1 y F2 siguen pasando.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Extiende un patrón ya fijado en F2.1; standard basta.
 - **Dependencies**: F2.5.T1
@@ -141,7 +141,7 @@ Done when: these tests pass in `tests/test_app.py` — `montar_dependencias` inc
 dobles, aprobar un carrusel deja en `conteudo` una URL de R2 por lámina; sin `IG_TOKEN` la agenda no registra el
 publicador de Instagram. Además `docker build` termina y `playwright` encuentra Chromium dentro de la imagen.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Cableado más un paso de preparación con varios servicios.
 - **Dependencies**: F3.2.T1, F3.3.T1, F3.3.T2, F3.4.T1

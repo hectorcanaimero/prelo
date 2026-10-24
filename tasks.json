@@ -19,7 +19,7 @@
       "phase": 0,
       "title": "Add a Getting started section to README.md",
       "description": "Add a short \"Getting started\" section to README.md (create the file if it does not exist): what this project is, how to install what it needs and how to run it, from what the repository holds today. Change nothing else. This is orch's sample task: it shows an agent at work before you plan your own.",
-      "model": "claude/claude-haiku-4-5",
+      "model": "claude/claude-haiku-5-5",
       "reason": "A small, safe first task on the cheapest model of a CLI you have installed.",
       "status": "todo",
       "dependencies": [],
@@ -85,7 +85,7 @@
       "phase": 1,
       "title": "Grafo con dobles",
       "description": "Usa `src/prelo/interfaces.py` y `src/prelo/estado.py` tal como los deja F1.1.T4 (no los cambies) y escribe\n`src/prelo/grafo.py` con\n`construir(deps, checkpointer)`, `iniciar(grafo, tema, origem) -\u003e post_id` y `retomar(grafo, post_id, decisao,\ncomentario=None)`.\n\nEl flujo de F1 (sección *grafo*): `investigar → redigir → revisar`; si hay violaciones y `tentativas \u003c 2`, vuelve a\n`redigir` con el feedback; luego `adaptar_linkedin → revisar → aprovar` (`interrupt()`, con `deps.notificar` antes de\npausar) `→ agendar → END`. \"editar\" vuelve al adaptador con el comentario; \"descartar\" marca la pieza `descartada` y\nva a `END`. `agendar` solo pone la pieza en `aprovada` con `decisao = aprovado`: publicar es trabajo de la agenda\n(D9). `thread_id = post_id`. El grafo escribe en `posts`, `fontes` y `pecas` vía `deps.repo` (el protocolo `Repositorio`) y no importa\nningún cliente externo. Esta tarea corre en paralelo con la base de datos (F1.1.T2): en los tests usa un `Repositorio`\nen memoria escrito en el propio test, y para la prueba de reinicio una fixture local que lee `TEST_DATABASE_URL` y\nsalta si no existe (`PostgresSaver.setup()` crea sus propias tablas; no hacen falta las migraciones).\n\nDone when: these tests pass in `tests/test_grafo.py`, usando dobles para todas las funciones de `Dependencias` —\nun tema sin violaciones llega a `aprovar` y queda pausado con la pieza `pendente`; `retomar(..., \"aprovado\")` deja la\npieza `aprovada` con `decisao = aprovado`; un borrador que siempre viola se reescribe exactamente 2 veces y llega a\n`aprovar` con `violacoes` no vacías; \"editar\" llama al adaptador con el comentario y vuelve a pausar; \"descartar\"\ndeja la pieza `descartada` y no se aprueba nada; con `PostgresSaver` (fixture local sobre `TEST_DATABASE_URL`), construir un grafo nuevo\ntras la pausa y aprobar con él aprueba exactamente el texto que se pausó (FR-8).",
-      "model": "claude/claude-opus-4-7",
+      "model": "claude/claude-opus-5-5",
       "reason": "Flujo con interrupt/checkpointer y reintentos; diseño crítico.",
       "status": "backlog",
       "dependencies": [
@@ -106,7 +106,7 @@
       "phase": 1,
       "title": "Revisión de marca determinista",
       "description": "Implementa `revisar(texto, fontes, regras) -\u003e list[Violacao]` en `src/prelo/marca.py` según *marca* y D3/D11 de\ndocs/arch/001-prelo.md, y `carregar_regras(settings) -\u003e Regras`, que junta `marca.toml` (frases de \"cara de IA\" y\npatrones de cifras y fechas) con `settings.PRELO_BLOQUEIA`. Ningún empleador ni cliente real va en el repo (NFR-5):\nlos tests usan nombres inventados.\n\nReglas: `empregador` si aparece un nombre de la lista (sin distinguir mayúsculas ni acentos, como palabra completa);\n`frase_ia` si aparece una frase de la lista de `marca.toml`; `cifra_sem_fonte` si una cifra o fecha del texto no\naparece en ningún `trecho` de las `fontes` (FR-4). Cada `Violacao` lleva el `trecho` exacto que la causó.\n\nDone when: these tests pass in `tests/test_marca.py` — \"trabajé en ACME\" con `ACME` en la lista da una violación\n`empregador`; \"Acmé\" también la da; \"acmeísmo\" no; una frase de la lista de `marca.toml` da `frase_ia`; \"creció un\n40%\" sin fuente que contenga \"40%\" da `cifra_sem_fonte` y con ella no; \"en 2024\" se trata igual que una cifra; un\ntexto limpio devuelve lista vacía; `carregar_regras` con `PRELO_BLOQUEIA` vacío no bloquea ningún nombre.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Lógica determinista con casos borde de normalización; standard con buenos tests.",
       "status": "backlog",
       "dependencies": [
@@ -166,7 +166,7 @@
       "phase": 1,
       "title": "Redator y adaptador de LinkedIn",
       "description": "Implementa `redator` (`src/prelo/agentes/redator.py`) y `adaptador_linkedin`\n(`src/prelo/agentes/adaptador_linkedin.py`) con las firmas de `Dependencias.redigir` y `Dependencias.adaptar` de\ndocs/arch/001-prelo.md. El redator escribe la pieza madre en español (`Texto`: título, resumen, cuerpo) con las\nfuentes y, si llega, el feedback de violaciones o del editor. El adaptador produce el post de LinkedIn en pt-BR y,\ncuando `url_blog` no es `None`, incluye ese link (FR-11). El contenido de cada fuente entra al prompt dentro de\n`\u003cfonte\u003e…\u003c/fonte\u003e` con la instrucción explícita de tratarlo como datos (NFR-4). Los prompts viven en el módulo de\ncada agente.\n\nDone when: these tests pass in `tests/test_redator.py`, con un `Modelo` falso que captura el prompt — cada fuente\naparece dentro de `\u003cfonte\u003e` y el prompt contiene la instrucción de tratarla como datos; una fuente con\n\"ignora las instrucciones anteriores\" queda dentro del delimitador; el feedback aparece en el prompt cuando se pasa;\nla salida del modelo se parsea a un `Texto` con los tres campos; el adaptador incluye `url_blog` cuando existe y no\ninventa un link cuando es `None`.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Prompts y parseo; la calidad real la miden las evals de F1.6.",
       "status": "backlog",
       "dependencies": [
@@ -186,7 +186,7 @@
       "phase": 1,
       "title": "App de Slack: /prelo y aprobación",
       "description": "Implementa `src/prelo/slack.py` con Slack Bolt en Socket Mode (D8), según *slack* e *Interfaces → Slack* de\ndocs/arch/001-prelo.md. `/prelo \u003ctema\u003e` llama a `iniciar` (FR-1) y responde con el tema recibido o el motivo del\nfallo. `notificar(peca)` publica en `SLACK_CANAL` la pieza pendiente con el texto, las fuentes (FR-3), las\nviolaciones, el costo del post por agente y total (FR-16) y los botones `prelo_aprovar`, `prelo_editar`,\n`prelo_descartar` con `value` = JSON `{\"post_id\", \"peca_id\"}` (FR-9). Si la pieza tiene violaciones, no se muestra\n\"Aprobar\" (FR-6). \"Editar\" abre un modal con el campo `comentario`. Cada acción llama a `retomar` y actualiza el\nmensaje. Crea también `slack-manifest.yml` (Socket Mode, comando `/prelo`, interactividad, scopes `chat:write` y\n`commands`) para crear la app una vez en api.slack.com/apps (D15). Las funciones reciben `iniciar`/`retomar` y el `Repositorio` inyectados; la app no importa el grafo.\n\nDone when: these tests pass in `tests/test_slack.py`, con un cliente de Slack falso — `/prelo IA local` llama a\n`iniciar` con ese tema; un fallo de `iniciar` responde con su motivo; el mensaje de una pieza sin violaciones trae\nlos tres botones con el `value` correcto, las fuentes y el costo; una pieza con violaciones no trae `prelo_aprovar`\ny lista las violaciones; pulsar Aprobar llama a `retomar(post_id, \"aprovado\")`; enviar el modal de Editar llama a\n`retomar(post_id, \"editar\", comentario)`; Descartar llama a `retomar(post_id, \"descartar\")`.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Integración Bolt con bloques y modales; varios caminos pero sin diseño nuevo.",
       "status": "backlog",
       "dependencies": [
@@ -267,7 +267,7 @@
       "phase": 1,
       "title": "app.py, API de salud y README",
       "description": "Conecta todo según *Components* de docs/arch/001-prelo.md. `src/prelo/app.py` lee `Settings`, aplica las\nmigraciones, construye los clientes reales, arma las `Dependencias` (investigador, redator, adaptador LinkedIn,\n`revisar` con `carregar_regras`, `notificar` de Slack, repositorio), construye el grafo con `PostgresSaver` y arranca\nen un solo proceso la API, la app de Slack y el worker de agenda (cada minuto). `src/prelo/api.py` es FastAPI con\n`GET /saude` (200 si la base responde) y `POST /posts` para Hermes según *Interfaces → API para Hermes* y D15\n(`{\"tema\"}` + `Bearer PRELO_API_TOKEN` → `202 {\"post_id\"}`; comparación del token en tiempo constante). No existe\nningún endpoint que apruebe. Reemplaza `README.md` por uno que explique qué es Prelo, el diagrama del\ngrafo, cómo levantarlo con `docker compose up`, cómo crear la app de Slack desde `slack-manifest.yml`, cómo apuntar Hermes a\n`POST /posts` y qué variables hacen falta.\n\nDone when: these tests pass in `tests/test_app.py` — `GET /saude` responde 200 con la base disponible y 503 sin\nella; `POST /posts` con el token correcto llama a `iniciar` y responde 202 con el `post_id`; sin token o con\nuno incorrecto responde 401 y no llama a `iniciar`; un tema vacío responde 422; `montar_dependencias(settings, clientes_falsos)` devuelve unas `Dependencias` con todas sus claves y el\nadaptador `linkedin`; con dobles, un `/prelo` simulado termina en una pieza pendiente notificada en Slack.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Cableado de piezas ya probadas más un endpoint autenticado.",
       "status": "backlog",
       "dependencies": [
@@ -296,7 +296,7 @@
       "phase": 2,
       "title": "Nodos traduzir, pr_blog y esperar_deploy con dobles",
       "description": "Extiende el grafo según *grafo* de docs/arch/001-prelo.md: tras `revisar` ok van `traduzir → pr_blog` (abre el PR y\nhace `interrupt()` hasta el merge) `→ esperar_deploy` (otro `interrupt()` hasta que `deploy_blog` reanude con la URL\npública) y solo entonces los derivados, con `url_blog` en el estado. Añade a `Dependencias` `traduzir(texto, *,\npost_id) -\u003e dict[str, Texto]` y `abrir_pr(post_id, textos) -\u003e str` (URL del PR), como fija *Interfaces*. Crea la\npieza de canal `blog` en `pecas`; el merge del PR registra `decisao = aprovado` para esa pieza (FR-7). Si el PR se\ncierra sin merge, el post termina sin derivados. Mantén verdes los tests de F1 adaptando sus dobles.\n\nDone when: these tests pass in `tests/test_grafo_blog.py`, con dobles — un tema sin violaciones llama a `traduzir`\ny a `abrir_pr` y queda pausado en `pr_blog`; reanudar con merge pausa en `esperar_deploy`; reanudar con la URL\nllama al adaptador de LinkedIn con esa `url_blog`; la pieza `blog` queda con `decisao = aprovado` tras el merge;\nun PR cerrado sin merge termina el post sin llamar al adaptador; y `tests/test_grafo.py` sigue pasando.",
-      "model": "claude/claude-opus-4-7",
+      "model": "claude/claude-opus-5-5",
       "reason": "Cambia el flujo central con dos interrupts nuevos; diseño crítico.",
       "status": "backlog",
       "dependencies": [
@@ -376,7 +376,7 @@
       "phase": 2,
       "title": "Webhook de GitHub",
       "description": "Implementa `src/prelo/webhooks.py`: un `APIRouter` de FastAPI con `POST /webhooks/github` que verifica la firma\n`X-Hub-Signature-256` con `GITHUB_WEBHOOK_SECRET` (comparación en tiempo constante) y, para eventos `pull_request`\ncon `action = closed`, rama `prelo/\u003cpost_id\u003e` y `merged = true`, llama a `retomar(post_id, \"aprovado\")`; con\n`merged = false`, a `retomar(post_id, \"descartar\")` (ver *Interfaces → GitHub*). Otros eventos responden 204 sin\nefecto. Recibe `retomar` inyectado; `api.py` lo monta en F2.5.\n\nDone when: these tests pass in `tests/test_webhooks.py` — una firma inválida responde 401 y no llama a `retomar`; un\nPR mergeado de `prelo/abc` llama a `retomar(\"abc\", \"aprovado\")`; un PR cerrado sin merge llama a\n`retomar(\"abc\", \"descartar\")`; un PR de otra rama o un evento `push` responde 204 sin efecto; reenviar el mismo\nevento no reanuda dos veces.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Verificación de firma: sensible pero acotada y bien conocida.",
       "status": "backlog",
       "dependencies": [
@@ -414,7 +414,7 @@
       "phase": 2,
       "title": "Conexión del blog en app.py y api.py",
       "description": "Añade a `montar_dependencias` el `tradutor` y `abrir_pr`, monta el router de `webhooks.py` en `api.py` y arranca el\nsondeo de `deploy_blog` junto a la agenda. Actualiza `README.md` con cómo configurar el webhook en `site-guria`.\n\nDone when: these tests pass in `tests/test_app.py` — `montar_dependencias` incluye `traduzir` y `abrir_pr`;\n`POST /webhooks/github` está montado y responde 401 a una firma inválida; con dobles, un tema llega a una pieza de\nLinkedIn pendiente con `url_blog` tras simular merge y deploy.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Cableado.",
       "status": "backlog",
       "dependencies": [
@@ -456,7 +456,7 @@
       "phase": 3,
       "title": "Nodo adaptar_carrossel y canal instagram con dobles",
       "description": "Añade el derivado `instagram` al grafo según *grafo* de docs/arch/001-prelo.md: tras `esperar_deploy`, además de\nLinkedIn, `adaptar_carrossel → revisar → aprovar` crea una pieza de canal `instagram` con `conteudo` =\n`{\"laminas\": [{\"titulo\", \"texto\"}], \"prompt_imagem\": str, \"url_blog\": str}` y pasa por la misma aprobación en Slack.\nAñade al `pyproject.toml` las dependencias de la fase (`playwright`, `openai`, `boto3`) y regenera `uv.lock`, para\nque las tareas paralelas no toquen esos archivos. Comprueba que `slack.notificar` muestra una pieza `instagram`\n(texto de cada lámina) y que la agenda la trata como un canal más (FR-13).\n\nDone when: these tests pass in `tests/test_grafo_carrossel.py`, con dobles — tras el deploy hay dos piezas\npendientes, `linkedin` e `instagram`; aprobar una no aprueba la otra; descartar el carrusel no afecta a LinkedIn; la\nrevisión de marca se aplica al texto de todas las láminas; y los tests de F1 y F2 siguen pasando.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Extiende un patrón ya fijado en F2.1; standard basta.",
       "status": "backlog",
       "dependencies": [
@@ -556,7 +556,7 @@
       "phase": 3,
       "title": "Conexión del carrusel",
       "description": "Añade a `montar_dependencias` el adaptador `instagram`. Al aprobarse una pieza `instagram`, antes de agendarla, genera\nla imagen de fondo, renderiza las láminas, sube los PNG a R2 y guarda sus URLs en `conteudo`. Registra el publicador\nde Instagram en la agenda solo si `IG_TOKEN` existe; sin él, la pieza queda `aprovada` y Slack avisa. Instala\nChromium de Playwright en el `Dockerfile`.\n\nDone when: these tests pass in `tests/test_app.py` — `montar_dependencias` incluye el adaptador `instagram`; con\ndobles, aprobar un carrusel deja en `conteudo` una URL de R2 por lámina; sin `IG_TOKEN` la agenda no registra el\npublicador de Instagram. Además `docker build` termina y `playwright` encuentra Chromium dentro de la imagen.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Cableado más un paso de preparación con varios servicios.",
       "status": "backlog",
       "dependencies": [
@@ -579,7 +579,7 @@
       "phase": 4,
       "title": "Tabla metricas, worker diario y /prelo sugerir con dobles",
       "description": "Añade `src/prelo/db/migracoes/002_metricas.sql` con la tabla `metricas` de *Data model* y los métodos del\n`Repositorio` para guardarlas y leer la última de cada publicación. Crea `src/prelo/metricas.py` con un protocolo\n`Leitor` (`canal`, `ler(publicacao) -\u003e {\"reacoes\": int, \"comentarios\": list}`) y `coletar(leitores, repo)`, que\nrecorre las publicaciones de LinkedIn e Instagram y guarda una fila por publicación. En `slack.py`, `/prelo sugerir`\nllama a una función `sugerir() -\u003e list[{\"tema\", \"origem\", \"link\"}]` inyectada y muestra 3 temas con su link y un\nbotón `prelo_escolher` que inicia el post como `/prelo \u003ctema\u003e` con `origem = sugestao` (FR-2).\n\nDone when: these tests pass in `tests/test_metricas_fluxo.py`, con dobles — `coletar` con dos publicaciones guarda\ndos filas y una publicación sin lector de su canal se salta; la migración 002 se aplica sobre la 001 sin errores;\n`/prelo sugerir` muestra 3 temas, cada uno con su link; pulsar `prelo_escolher` llama a `iniciar` con ese tema y\n`origem = sugestao`; y `tests/test_slack.py` sigue pasando.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Esqueleto sobre patrones ya fijados.",
       "status": "backlog",
       "dependencies": [
@@ -640,7 +640,7 @@
       "phase": 4,
       "title": "Infra en AWS con Terraform",
       "description": "Crea `infra/terraform/` según D12: una EC2 (Ubuntu, Docker y Compose instalados por `user_data`) en una VPC con\nsubred pública, security group que solo abre 443 (para el webhook de GitHub y `POST /posts`) y SSH restringido a una\nIP variable, Elastic IP, secretos en SSM Parameter Store (leídos al arrancar para generar el `.env`), un volumen EBS\npara Postgres y backups diarios con snapshots de DLM. Estado remoto en S3. Variables y outputs documentados en\n`infra/terraform/README.md`, incluida la medición de memoria de Langfuse v3 (riesgo del ARCH) y el plan B con\nLangfuse Cloud.\n\nDone when: `terraform fmt -check`, `terraform validate` y `tflint` pasan en `infra/terraform/`; el security group no\nabre ningún puerto a `0.0.0.0/0` salvo 443; ningún secreto aparece en un `.tf`. No hay tests de Python.",
-      "model": "claude/claude-sonnet-4-6",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Terraform estándar con cuidado de seguridad de red y secretos.",
       "status": "backlog",
       "dependencies": [
@@ -680,7 +680,7 @@
       "phase": 1,
       "title": "Contratos: interfaces.py y estado.py",
       "description": "Escribe `src/prelo/interfaces.py` y `src/prelo/estado.py` exactamente como los fija *Interfaces* de\ndocs/arch/001-prelo.md: `Fonte`, `Violacao`, `Texto`, `EstadoPost`, `Modelo`, `Buscador`, `Publicador`,\n`Dependencias` y `Regras` (tipo opaco que rellena marca). Añade lo que el ARCH deja implícito para que las tareas\nparalelas no inventen nada:\n- dataclasses `Post`, `Peca`, `Publicacao` y `Custo` con los campos de *Data model*;\n- un `Protocol` `Repositorio` con los métodos que usan grafo, agenda, slack y custos (crear y leer posts, guardar\n  fuentes, crear/actualizar piezas, listar piezas por `status` y canal, registrar publicaciones y costos, sumar\n  costos por post y agente), cada uno con su docstring;\n- un `Protocol` `Aviso` (`avisar(texto: str) -\u003e None`) para los avisos en Slack de la agenda.\n\nSolo tipos y protocolos: ninguna implementación ni dependencia externa. Es el contrato del que parten 9 tareas en\nparalelo, así que cada firma debe estar completa y documentada.\n\nDone when: these tests pass in `tests/test_interfaces.py` — un `Repositorio` en memoria escrito en el test cumple el\nprotocolo (comprobado con `typing.runtime_checkable` + `isinstance`); un `EstadoPost` de ejemplo con los tres idiomas\npasa la comprobación de tipos de `pyright` o `mypy`; importar `interfaces` no importa ningún SDK externo.",
-      "model": "claude/claude-opus-4-7",
+      "model": "claude/claude-opus-5-5",
       "reason": "Contrato del que dependen todas las tareas paralelas; un error aquí se multiplica.",
       "status": "backlog",
       "dependencies": [

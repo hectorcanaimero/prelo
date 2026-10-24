@@ -35,7 +35,7 @@ y a `abrir_pr` y queda pausado en `pr_blog`; reanudar con merge pausa en `espera
 llama al adaptador de LinkedIn con esa `url_blog`; la pieza `blog` queda con `decisao = aprovado` tras el merge;
 un PR cerrado sin merge termina el post sin llamar al adaptador; y `tests/test_grafo.py` sigue pasando.
 
-- **Model**: claude/claude-opus-4-7
+- **Model**: claude/claude-opus-5-5
 - **Estimate**: 4h
 - **Reason**: Cambia el flujo central con dos interrupts nuevos; diseño crítico.
 - **Dependencies**: F1.7.T1
@@ -123,7 +123,7 @@ PR mergeado de `prelo/abc` llama a `retomar("abc", "aprovado")`; un PR cerrado s
 `retomar("abc", "descartar")`; un PR de otra rama o un evento `push` responde 204 sin efecto; reenviar el mismo
 evento no reanuda dos veces.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 2h
 - **Reason**: Verificación de firma: sensible pero acotada y bien conocida.
 - **Dependencies**: F2.1.T1
@@ -163,7 +163,7 @@ Done when: these tests pass in `tests/test_app.py` — `montar_dependencias` inc
 `POST /webhooks/github` está montado y responde 401 a una firma inválida; con dobles, un tema llega a una pieza de
 LinkedIn pendiente con `url_blog` tras simular merge y deploy.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 2h
 - **Reason**: Cableado.
 - **Dependencies**: F2.2.T1, F2.3.T1, F2.3.T2, F2.4.T1

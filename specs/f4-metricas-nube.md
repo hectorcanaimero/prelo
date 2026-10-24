@@ -34,7 +34,7 @@ dos filas y una publicación sin lector de su canal se salta; la migración 002 
 `/prelo sugerir` muestra 3 temas, cada uno con su link; pulsar `prelo_escolher` llama a `iniciar` con ese tema y
 `origem = sugestao`; y `tests/test_slack.py` sigue pasando.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Esqueleto sobre patrones ya fijados.
 - **Dependencies**: F3.5.T1
@@ -104,7 +104,7 @@ Langfuse Cloud.
 Done when: `terraform fmt -check`, `terraform validate` y `tflint` pasan en `infra/terraform/`; el security group no
 abre ningún puerto a `0.0.0.0/0` salvo 443; ningún secreto aparece en un `.tf`. No hay tests de Python.
 
-- **Model**: claude/claude-sonnet-4-6
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 4h
 - **Reason**: Terraform estándar con cuidado de seguridad de red y secretos.
 - **Dependencies**: F4.1.T1
