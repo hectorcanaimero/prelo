@@ -82,7 +82,7 @@ cada una con `origem` y un `link` que existe en las entradas; un tema publicado 
 commits recientes igual sugiere desde las otras fuentes; un mensaje de commit con instrucciones queda dentro del
 delimitador.
 
-- **Model**: agy/gemini-4-argon-medium
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Agregación de fuentes y prompt con validación.
 - **Dependencies**: F4.1.T1

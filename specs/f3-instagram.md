@@ -58,7 +58,7 @@ Done when: these tests pass in `tests/test_carrossel.py` — 3 láminas producen
 `<script>` sale escapado en el HTML; `{{n}}/{{total}}` se rellena como `2/3`; la última lámina lleva el link al blog;
 el test se salta si Chromium no está instalado.
 
-- **Model**: agy/gemini-4-argon-medium
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: HTML/CSS y render con Playwright; standard.
 - **Dependencies**: F3.1.T1
@@ -99,7 +99,7 @@ Done when: these tests pass in `tests/test_adaptador_carrossel.py`, con un `Mode
 láminas; un título de más de 60 caracteres se rechaza y se pide de nuevo una vez; el `url_blog` va en la última
 lámina; con `feedback` el comentario aparece en el prompt.
 
-- **Model**: agy/gemini-3.8-flash-medium
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 2h
 - **Reason**: Prompt y validación de longitudes; tarea mecánica.
 - **Dependencies**: F3.1.T1

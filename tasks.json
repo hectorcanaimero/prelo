@@ -478,7 +478,7 @@
       "phase": 3,
       "title": "Plantillas HTML y PNG con Playwright",
       "description": "Crea `templates/carrossel/` con una plantilla de portada, una de lámina y una de cierre (con el link al blog), con\nlos huecos `{{titulo}}`, `{{texto}}`, `{{imagem_url}}`, `{{n}}/{{total}}` de *Interfaces → Plantillas de carrusel*.\n`src/prelo/carrossel.py` rellena las plantillas (escapando HTML) y las pasa a PNG 1080×1350 con Playwright Chromium\nheadless (D5). Las plantillas no cargan nada de internet salvo `imagem_url`.\n\nDone when: these tests pass in `tests/test_carrossel.py` — 3 láminas producen 3 PNG de 1080×1350; un texto con\n`\u003cscript\u003e` sale escapado en el HTML; `{{n}}/{{total}}` se rellena como `2/3`; la última lámina lleva el link al blog;\nel test se salta si Chromium no está instalado.",
-      "model": "agy/gemini-4-argon-medium",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "HTML/CSS y render con Playwright; standard.",
       "status": "backlog",
       "dependencies": [
@@ -518,7 +518,7 @@
       "phase": 3,
       "title": "Agente adaptador_carrossel",
       "description": "Implementa `src/prelo/agentes/adaptador_carrossel.py` con la firma de `Dependencias.adaptar`: a partir del `Texto`\nen pt-BR y `url_blog` produce entre 4 y 8 láminas (`titulo` ≤ 60 caracteres, `texto` ≤ 220) y un `prompt_imagem`\ndescriptivo sin texto, con el modelo barato (D4). Las fuentes van delimitadas como en F1.3.T3 (NFR-4).\n\nDone when: these tests pass in `tests/test_adaptador_carrossel.py`, con un `Modelo` falso — devuelve entre 4 y 8\nláminas; un título de más de 60 caracteres se rechaza y se pide de nuevo una vez; el `url_blog` va en la última\nlámina; con `feedback` el comentario aparece en el prompt.",
-      "model": "agy/gemini-3.8-flash-medium",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Prompt y validación de longitudes; tarea mecánica.",
       "status": "backlog",
       "dependencies": [
@@ -622,7 +622,7 @@
       "phase": 4,
       "title": "Sugerencia de temas",
       "description": "Implementa `src/prelo/sugestoes.py` con `sugerir() -\u003e list[{\"tema\", \"origem\", \"link\"}]` según *sugestoes* de\ndocs/arch/001-prelo.md: junta los commits de los últimos 14 días de los repos de Héctor (GitHub API), la ruta de\nestudio y noticias de IA (vía `Buscador`), y pide al `Modelo` 3 temas, cada uno con el link de su origen (commit,\ndocumento o noticia). El contenido externo va delimitado como datos (NFR-4). Excluye temas ya publicados en los\núltimos 30 días.\n\nDone when: these tests pass in `tests/test_sugestoes.py`, con clientes falsos — devuelve exactamente 3 sugerencias,\ncada una con `origem` y un `link` que existe en las entradas; un tema publicado hace 10 días no se sugiere; sin\ncommits recientes igual sugiere desde las otras fuentes; un mensaje de commit con instrucciones queda dentro del\ndelimitador.",
-      "model": "agy/gemini-4-argon-medium",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Agregación de fuentes y prompt con validación.",
       "status": "backlog",
       "dependencies": [
