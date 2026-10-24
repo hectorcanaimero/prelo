@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 
@@ -18,6 +19,7 @@ from prelo.interfaces import (
     Aviso,
     Canal,
     Custo,
+    CustoAgente,
     Decisao,
     Fonte,
     Peca,
@@ -86,11 +88,17 @@ class RepoEmMemoria:
     def registrar_custo(self, custo: Custo) -> None:
         self.custos.append(custo)
 
-    def custos_por_post(self, post_id: str) -> dict[str, Decimal]:
-        total: dict[str, Decimal] = {}
+    def atualizar_post(self, post_id: str, *, estado: str) -> None:
+        self.posts[post_id] = replace(self.posts[post_id], estado=estado)
+
+    def custos_por_post(self, post_id: str) -> dict[str, CustoAgente]:
+        total: dict[str, CustoAgente] = {}
         for c in self.custos:
             if c.post_id == post_id:
-                total[c.agente] = total.get(c.agente, Decimal(0)) + c.usd
+                a = total.get(c.agente, CustoAgente(0, 0, Decimal(0)))
+                total[c.agente] = CustoAgente(
+                    a.tokens_entrada + c.tokens_entrada, a.tokens_saida + c.tokens_saida, a.usd + c.usd
+                )
         return total
 
 
@@ -174,3 +182,12 @@ def test_importar_interfaces_no_importa_sdks_externos() -> None:
     )
     result = subprocess.run([sys.executable, "-c", code], check=False, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_custos_por_post_suma_tokens_y_usd_por_agente() -> None:
+    now = datetime(2026, 10, 24, 10, 0, 0)
+    repo = RepoEmMemoria()
+    for usd in ("0.01", "0.02"):
+        repo.registrar_custo(Custo("p1", "redator", "m", 10, 5, Decimal(usd), now))
+    repo.registrar_custo(Custo("p2", "redator", "m", 99, 99, Decimal(9), now))
+    assert repo.custos_por_post("p1") == {"redator": CustoAgente(20, 10, Decimal("0.03"))}

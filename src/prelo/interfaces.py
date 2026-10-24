@@ -75,7 +75,9 @@ class Peca:
     id: str
     post_id: str
     canal: Canal
-    conteudo: dict[str, Texto]
+    # blog: {"es"|"pt"|"en": Texto}; linkedin: {"pt": Texto}; instagram: {"laminas": [...], "prompt_imagem": str,
+    # "url_blog": str}. jsonb en Postgres, por eso el valor es libre.
+    conteudo: dict[str, Any]
     violacoes: list[Violacao]
     status: StatusPeca
     decisao: Decisao | None = None
@@ -106,6 +108,15 @@ class Custo:
     tokens_saida: int
     usd: Decimal
     criado_em: datetime
+
+
+@dataclass(frozen=True)
+class CustoAgente:
+    """Suma de `custos` de un agente en un post: lo que muestra Slack (FR-16)."""
+
+    tokens_entrada: int
+    tokens_saida: int
+    usd: Decimal
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +196,10 @@ class Repositorio(Protocol):
         """Lee la fila de `posts` con las fuentes asociadas disponibles por aparte."""
         ...
 
+    def atualizar_post(self, post_id: str, *, estado: str) -> None:
+        """Cambia `posts.estado` (el nodo en que va el post: `investigando`, `aguardando_aprovacao`, `encerrado`...)."""
+        ...
+
     def salvar_fontes(self, post_id: str, fontes: list[Fonte]) -> None:
         """Guarda la lista de fuentes del investigador para `post_id`.
 
@@ -228,10 +243,10 @@ class Repositorio(Protocol):
         """Guarda una fila en `custos` (FR-16)."""
         ...
 
-    def custos_por_post(self, post_id: str) -> dict[str, Decimal]:
-        """Suma `usd` por `agente` para `post_id`.
+    def custos_por_post(self, post_id: str) -> dict[str, CustoAgente]:
+        """Suma tokens y `usd` por `agente` para `post_id` (FR-16).
 
-        Devuelve `{agente: usd_total}`; agentes sin costo no aparecen.
+        Devuelve `{agente: CustoAgente}`; agentes sin costo no aparecen. El total es la suma de los valores.
         """
         ...
 
@@ -269,6 +284,7 @@ __all__ = [
     "Buscador",
     "Canal",
     "Custo",
+    "CustoAgente",
     "Decisao",
     "Dependencias",
     "Fonte",
