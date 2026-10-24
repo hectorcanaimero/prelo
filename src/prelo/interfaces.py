@@ -10,10 +10,11 @@ Las piezas publicas estan descritas en docs/arch/001-prelo.md -> Interfaces.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Callable, Literal, Protocol, TypedDict, runtime_checkable
+from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
 
 
 # ---------------------------------------------------------------------------

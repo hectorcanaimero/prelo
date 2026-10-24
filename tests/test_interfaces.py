@@ -90,7 +90,7 @@ class RepoEmMemoria:
         total: dict[str, Decimal] = {}
         for c in self.custos:
             if c.post_id == post_id:
-                total[c.agente] = total.get(c.agente, Decimal("0")) + c.usd
+                total[c.agente] = total.get(c.agente, Decimal(0)) + c.usd
         return total
 
 
@@ -172,5 +172,5 @@ def test_importar_interfaces_no_importa_sdks_externos() -> None:
         "fugas = [s for s in sdks if any(m == s or m.startswith(s + '.') for m in sys.modules)]\n"
         "assert not fugas, f'fugas: {fugas}'\n"
     )
-    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "-c", code], check=False, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr or result.stdout
