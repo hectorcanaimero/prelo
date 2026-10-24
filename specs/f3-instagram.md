@@ -58,7 +58,7 @@ Done when: these tests pass in `tests/test_carrossel.py` — 3 láminas producen
 `<script>` sale escapado en el HTML; `{{n}}/{{total}}` se rellena como `2/3`; la última lámina lleva el link al blog;
 el test se salta si Chromium no está instalado.
 
-- **Model**: agy/gemini-3.1-pro-high
+- **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 3h
 - **Reason**: HTML/CSS y render con Playwright; standard.
 - **Dependencies**: F3.1.T1

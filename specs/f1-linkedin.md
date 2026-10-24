@@ -48,7 +48,7 @@ Done when: these tests pass in `tests/test_config.py` — `PRELO_BLOQUEIA="Acme,
 sin `PRELO_BLOQUEIA` la lista es vacía; el `repr` de `Settings` no contiene el valor de `SLACK_BOT_TOKEN`. Además
 `uv run ruff check` pasa y `docker compose config` valida el compose.
 
-- **Model**: agy/gemini-3.1-pro-high
+- **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 3h
 - **Reason**: Scaffolding con Langfuse v3 en compose tiene piezas no triviales; standard basta.
 - **Dependencies**:
@@ -193,7 +193,7 @@ al menos una `Fonte` con los tres campos; dos resultados con la misma URL quedan
 sin contenido se descarta; si no hay ninguna fuente, levanta un error con un motivo legible (que FR-1 muestra en
 Slack).
 
-- **Model**: agy/gemini-3.1-pro-high
+- **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 2h
 - **Reason**: Integración HTTP sencilla con validación.
 - **Dependencies**: F1.1.T3
@@ -293,7 +293,7 @@ Done when: these tests pass in `tests/test_linkedin.py`, con `respx` — una pub
 autor esperados y devuelve una `Publicacao` con URL e `id_externo`; un 401 levanta un error que no contiene el token;
 la cabecera de autorización lleva el token pero ningún log lo muestra.
 
-- **Model**: agy/gemini-3.1-pro-high
+- **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 2h
 - **Reason**: Cliente HTTP acotado.
 - **Dependencies**: F1.1.T3

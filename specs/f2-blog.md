@@ -59,7 +59,7 @@ Done when: these tests pass in `tests/test_tradutor.py`, con un `Modelo` falso �
 modelo devuelve una traducción sin cuerpo, levanta un error legible; el agente usado al llamar al modelo es
 `tradutor`.
 
-- **Model**: agy/gemini-3.1-pro-high
+- **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 2h
 - **Reason**: Prompt y parseo; la calidad la miden las evals de F2.5.
 - **Dependencies**: F2.1.T1
@@ -182,7 +182,7 @@ su umbral (NFR-2). No toques el runner: lo descubre solo.
 Done when: `uv run python evals/run.py traducao` corre los casos y reporta la métrica; con un tradutor falso que
 cambia una cifra, la corrida falla nombrando el caso.
 
-- **Model**: agy/gemini-3.1-pro-high
+- **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 2h
 - **Reason**: Casos y rúbrica; requiere criterio de calidad.
 - **Dependencies**: F2.2.T1
