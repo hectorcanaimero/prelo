@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: SecretToken = SecretStr("")
     OPENAI_API_KEY: SecretToken = SecretStr("")
     TAVILY_API_KEY: SecretToken = SecretStr("")
+    TYPESAFE_API_KEY: SecretToken = SecretStr("")
 
     SLACK_BOT_TOKEN: SecretToken = SecretStr("")
     SLACK_APP_TOKEN: SecretToken = SecretStr("")
