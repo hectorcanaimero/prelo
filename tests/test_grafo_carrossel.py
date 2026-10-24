@@ -143,3 +143,13 @@ def test_slack_muestra_el_texto_de_cada_lamina():
 
     assert "instagram" in texto
     assert all(s in texto for s in ("Portada", "texto uno", "Idea", "texto dos"))
+
+
+def test_linkedin_descartado_el_post_se_resuelve_con_la_decision_del_carrusel():
+    d, g, post_id = _linkedin_decidido("descartar")
+    grafo.retomar(g, post_id, "aprovado", None, peca_id=_por_canal(d, post_id)["instagram"].id)
+    assert d.repo.posts[post_id].estado == "aprovado"
+
+    d, g, post_id = _linkedin_decidido("descartar")
+    grafo.retomar(g, post_id, "descartar", None, peca_id=_por_canal(d, post_id)["instagram"].id)
+    assert d.repo.posts[post_id].estado == "descartado"

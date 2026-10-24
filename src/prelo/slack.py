@@ -103,7 +103,7 @@ def registrar(
             respond(text="Temas sugeridos", blocks=_blocos_sugestoes(temas))
             return
         if not tema:
-            respond("Uso: /prelo <tema>")
+            respond("Uso: /prelo <tema> — o /prelo sugerir para recibir 3 temas")
             return
         try:
             iniciar(tema)

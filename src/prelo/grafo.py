@@ -201,13 +201,16 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
         atualizacao = {"comentario_ig": comentario}
         if decisao == "aprovado":
             repo.atualizar_peca(estado["peca_ig_id"], status="aprovada", decisao="aprovado", comentario=comentario)
+            repo.atualizar_post(estado["post_id"], estado="aprovado")
             return Command(update=atualizacao, goto=END)
         if decisao == "editar":
             repo.atualizar_peca(estado["peca_ig_id"], status="descartada", decisao="editar", comentario=comentario)
             return Command(update=atualizacao, goto="adaptar_carrossel")
         if decisao == "descartar":
-            # Solo la pieza: el post sigue vivo mientras linkedin esté en juego.
+            # Solo la pieza; el post se descarta únicamente si linkedin también se descartó.
             repo.atualizar_peca(estado["peca_ig_id"], status="descartada", decisao="descartar", comentario=comentario)
+            if repo.ler_peca(estado["peca_id"]).status == "descartada":
+                repo.atualizar_post(estado["post_id"], estado="descartado")
             return Command(update=atualizacao, goto=END)
         raise ValueError(f"decisao desconocida: {decisao!r}")
 
