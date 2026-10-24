@@ -11,7 +11,7 @@ from prelo.metricas import ErroLectura, LeitorInstagram, LeitorLinkedin, coletar
 TOKEN = "tok-secreto-123"
 URN = "urn:li:share:99"
 LI = "https://api.linkedin.com/rest/socialActions/urn%3Ali%3Ashare%3A99"
-IG = "https://graph.facebook.com/v21.0"
+IG = "https://graph.instagram.com/v21.0"
 
 
 def _pub(canal, i, id_externo=None):

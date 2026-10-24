@@ -1,4 +1,4 @@
-import base64
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -9,17 +9,27 @@ from prelo.r2 import subir
 PNG = b"\x89PNG-fake"
 
 
-class FakeOpenAI:
+class FakeHttp:
     def __init__(self, error=None):
-        self.llamadas = []
+        self.posts = []
+        self.gets = []
         self.error = error
-        self.images = self
 
-    def generate(self, **kw):
-        self.llamadas.append(kw)
+    def post(self, url, **kw):
+        self.posts.append((url, kw))
         if self.error:
             raise self.error
-        return SimpleNamespace(data=[SimpleNamespace(b64_json=base64.b64encode(PNG).decode())])
+        return SimpleNamespace(
+            raise_for_status=lambda: None, json=lambda: {"images": [{"url": "https://fal.media/x.png"}]}
+        )
+
+    def get(self, url, **kw):
+        self.gets.append(url)
+        return SimpleNamespace(raise_for_status=lambda: None, content=PNG)
+
+
+def gerar(http, repo=None, **kw):
+    return gerar_imagem("x", post_id="p1", http=http, fal_key="k-secreta", repo=repo or FakeRepo(), **kw)
 
 
 class FakeRepo:
@@ -39,27 +49,39 @@ class FakeS3:
 
 
 def test_prompt_lleva_la_prohibicion_de_texto():
-    ia = FakeOpenAI()
-    assert gerar_imagem("un faro al amanecer", post_id="p1", openai=ia, repo=FakeRepo()) == PNG
-    enviado = ia.llamadas[0]["prompt"].lower()
-    assert ia.llamadas[0]["model"] == "gpt-image-1"
+    http = FakeHttp()
+    assert gerar_imagem("un faro al amanecer", post_id="p1", http=http, fal_key="k", repo=FakeRepo()) == PNG
+    url, kw = http.posts[0]
+    assert url == "https://fal.run/fal-ai/flux/schnell"
+    assert kw["headers"] == {"Authorization": "Key k"}
+    enviado = kw["json"]["prompt"].lower()
     assert "un faro al amanecer" in enviado
     assert "text" in enviado and "letters" in enviado and "numbers" in enviado
+    assert http.gets == ["https://fal.media/x.png"]
+
+
+def test_cualquier_modelo_de_fal_con_su_costo():
+    http, repo = FakeHttp(), FakeRepo()
+    gerar(http, repo, modelo="fal-ai/flux-pro/v1.1", usd=Decimal("0.04"))
+    assert http.posts[0][0] == "https://fal.run/fal-ai/flux-pro/v1.1"
+    assert repo.custos[0].modelo == "fal-ai/flux-pro/v1.1"
+    assert repo.custos[0].usd == Decimal("0.04")
 
 
 def test_registra_costo_con_agente_imagem():
     repo = FakeRepo()
-    gerar_imagem("x", post_id="p1", openai=FakeOpenAI(), repo=repo)
+    gerar(FakeHttp(), repo)
     assert len(repo.custos) == 1
     assert repo.custos[0].agente == "imagem"
     assert repo.custos[0].post_id == "p1"
     assert repo.custos[0].usd > 0
 
 
-def test_error_del_cliente_es_legible():
+def test_error_del_cliente_es_legible_y_sin_la_clave():
     repo = FakeRepo()
-    with pytest.raises(RuntimeError, match="imagen.*p1"):
-        gerar_imagem("x", post_id="p1", openai=FakeOpenAI(ValueError("boom")), repo=repo)
+    with pytest.raises(RuntimeError, match="imagen.*p1") as e:
+        gerar(FakeHttp(ValueError("Authorization: Key k-secreta")), repo)
+    assert "k-secreta" not in str(e.value)
     assert repo.custos == []
 
 

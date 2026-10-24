@@ -270,14 +270,18 @@ class Dependencias:              # lo que recibe grafo.construir(deps, checkpoin
   multiplica el costo para un solo usuario y se aleja del entorno local (NFR-6).
 - **D13 — Búsqueda.** Chosen: Tavily detrás de `Buscador`. Rejected: scraping propio, por mantenimiento; la interfaz
   permite cambiarlo.
-- **D14 — Imagen de fondo del carrusel.** Chosen: API de imágenes de OpenAI (`gpt-image-1`) detrás de una función
-  `gerar_imagem(prompt) -> bytes`. Rejected: Midjourney, porque no tiene API oficial.
+- **D14 — Imagen de fondo del carrusel.** Chosen: FAL (`https://fal.run/<modelo>`) detrás de una función
+  `gerar_imagem(prompt) -> bytes`; el modelo (`FAL_MODELO_IMAGEN`, por defecto `fal-ai/flux/schnell`) y su precio
+  (`FAL_USD_POR_IMAGEN`) se cambian por configuración, así que cualquier modelo de imagen de FAL sirve sin tocar
+  código. Rejected: `gpt-image-1` de OpenAI (la v0.3 de este documento), unas 10 veces más caro por fondo y atado a un
+  solo modelo; Midjourney, porque no tiene API oficial.
 
 ## Risks
 
 - El token de LinkedIn caduca a los 60 días, *mitigation:* la agenda avisa en Slack 7 días antes y un fallo de
   publicación deja la pieza en `aprovada`, no la pierde.
-- La API de Instagram exige una cuenta Business o Creator vinculada a una página de Facebook (pregunta abierta),
+- La API de Instagram exige una cuenta Business o Creator. Se usa la *Instagram API with Instagram Login*
+  (`graph.instagram.com`), que no necesita página de Facebook; su token dura 60 días y hay que renovarlo,
   *mitigation:* F3 empieza por un esqueleto con publicador falso; el real se hace cuando esté la cuenta.
 - Langfuse v3 self-hosted pide ClickHouse y Redis y puede no caber en una EC2 pequeña, *mitigation:* medirlo en F4.4;
   si no cabe, Langfuse Cloud (plan gratis) detrás de las mismas variables.

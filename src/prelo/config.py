@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated
 
 from pydantic import BeforeValidator, Field, SecretStr
@@ -45,7 +46,9 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: SecretToken = SecretStr("")
     ANTHROPIC_BASE_URL: str = ""  # 9router: su clave va en ANTHROPIC_API_KEY
     JEV_MODELOS: str = "openrouter/typesafe/jev-1.13"  # modelos de Jev en 9router, en orden, separados por comas
-    OPENAI_API_KEY: SecretToken = SecretStr("")
+    FAL_KEY: SecretToken = SecretStr("")
+    FAL_MODELO_IMAGEN: str = "fal-ai/flux/schnell"
+    FAL_USD_POR_IMAGEN: Decimal = Decimal("0.003")
     TAVILY_API_KEY: SecretToken = SecretStr("")
     TYPESAFE_API_KEY: SecretToken = SecretStr("")
 

@@ -22,3 +22,6 @@ venv/
 # orch / local
 tasks.json.bak-*
 .claude/settings.local.json
+
+# secretos locales
+.env

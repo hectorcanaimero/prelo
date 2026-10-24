@@ -72,6 +72,7 @@ curl -X POST http://prelo:8000/posts \
 | `DATABASE_URL` | Postgres (datos y checkpoints del grafo) |
 | `ANTHROPIC_API_KEY` | LLM |
 | `TAVILY_API_KEY` | Búsqueda de fuentes |
+| `FAL_KEY`, `FAL_MODELO_IMAGEN`, `FAL_USD_POR_IMAGEN` | Fondo del carrusel con cualquier modelo de imagen de FAL (por defecto `fal-ai/flux/schnell`) y su precio por imagen |
 | `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_CANAL` | App de Slack y canal de aprobación |
 | `LINKEDIN_TOKEN`, `LINKEDIN_AUTHOR_URN` | Publicar en LinkedIn |
 | `LINKEDIN_TOKEN_EXPIRES_AT` | Fecha ISO de caducidad del token; Prelo avisa en Slack 7 días antes |
@@ -80,4 +81,9 @@ curl -X POST http://prelo:8000/posts \
 | `PRELO_BLOQUEIA` | Empleadores y clientes que nunca deben aparecer, separados por comas |
 
 Reservadas para F2/F3: `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_REPO`, `IG_TOKEN`, `IG_USER_ID`, `R2_*`.
+
+Instagram usa la *Instagram API with Instagram Login* (`graph.instagram.com`): cuenta Business o Creator, sin página
+de Facebook. En la app de Meta → Instagram → *API setup with Instagram business login*, agrega la cuenta y pulsa
+**Generate token**; ahí mismo aparece el ID de la cuenta (`IG_USER_ID`). Permisos: `instagram_business_basic`,
+`instagram_business_content_publish` e `instagram_business_manage_comments`. El token dura 60 días.
 Los tokens viven solo en `Settings` (`src/prelo/config.py`); nunca se escriben en logs ni en el repo.

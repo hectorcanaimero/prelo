@@ -17,7 +17,7 @@ from prelo.interfaces import Canal, Peca, Publicacao
 
 logger = logging.getLogger(__name__)
 
-GRAPH_URL = "https://graph.facebook.com/v21.0"
+GRAPH_URL = "https://graph.instagram.com/v21.0"
 
 
 class ErroPublicacaoInstagram(RuntimeError):
