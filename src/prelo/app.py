@@ -95,7 +95,11 @@ def main() -> None:
         host=settings.LANGFUSE_HOST,
     )
     modelo = ModeloAnthropic(
-        anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY.get_secret_value()), _TrazaLangfuse(langfuse), repo
+        anthropic.Anthropic(
+            api_key=settings.ANTHROPIC_API_KEY.get_secret_value(), base_url=settings.ANTHROPIC_BASE_URL or None
+        ),
+        _TrazaLangfuse(langfuse),
+        repo,
     )
 
     # El grafo necesita `notificar` (Slack) y Slack necesita iniciar/retomar (grafo): se cierra el ciclo con `g`.

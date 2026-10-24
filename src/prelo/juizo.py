@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any, Protocol
 
 from prelo.interfaces import Custo, Repositorio
@@ -69,3 +70,61 @@ class JuizTypeSafe:
             )
         log.info("avaliar post_id=%s modelo=%s", post_id, resp.model)
         return Respostas(resp.answers)
+
+
+class JuizRouter:
+    """Jev por el endpoint `/v1/systemone` de 9router; prueba `modelos` en orden. `http` es un `httpx.Client`."""
+
+    def __init__(self, http: Any, url: str, api_key: str, modelos: list[str], repo: Repositorio) -> None:
+        self._http, self._url, self._key, self._modelos, self._repo = http, url.rstrip("/"), api_key, modelos, repo
+
+    def avaliar(self, estado: dict, perguntas: dict, *, post_id: str | None = None) -> Respostas:
+        for modelo in self._modelos:
+            try:
+                r = self._http.post(
+                    self._url + "/v1/systemone",
+                    headers={"Authorization": f"Bearer {self._key}"},
+                    json={"model": modelo, "state": estado, "questions": perguntas},
+                    timeout=60,
+                )
+                r.raise_for_status()
+                d = r.json()
+                d = d.get("result", d)  # algunos proveedores (Cloudflare) envuelven la respuesta
+                answers = {k: SimpleNamespace(**v) for k, v in d["answers"].items()}
+                if set(answers) != set(perguntas):
+                    raise ValueError("faltan respuestas")
+            except Exception as e:  # noqa: BLE001 — cualquier fallo pasa al siguiente modelo
+                # Sin `str(e)`: un error de httpx puede incluir la cabecera con la clave (NFR-3).
+                log.warning("Jev vía 9router falló: modelo=%s %s", modelo, type(e).__name__)
+                continue
+            uso = d.get("usage") or {}
+            if post_id is not None:
+                self._repo.registrar_custo(
+                    Custo(
+                        post_id,
+                        AGENTE,
+                        d.get("model", modelo),
+                        uso.get("input_tokens") or 0,
+                        uso.get("output_tokens") or 0,
+                        Decimal(str(uso.get("cost") or 0)),
+                        datetime.now(UTC),
+                    )
+                )
+            log.info("avaliar post_id=%s modelo=%s", post_id, d.get("model", modelo))
+            return Respostas(answers)
+        raise JuizIndisponivel("fallaron todos los modelos de Jev en 9router")
+
+
+class JuizEmCadeia:
+    """Prueba cada `Juiz` en orden hasta que uno responda (p. ej. 9router y luego TypeSafe directo)."""
+
+    def __init__(self, *juizes: Juiz) -> None:
+        self._juizes = juizes
+
+    def avaliar(self, estado: dict, perguntas: dict, *, post_id: str | None = None) -> Respostas:
+        for juiz in self._juizes:
+            try:
+                return juiz.avaliar(estado, perguntas, post_id=post_id)
+            except JuizIndisponivel:
+                continue
+        raise JuizIndisponivel("ningún Juiz respondió")

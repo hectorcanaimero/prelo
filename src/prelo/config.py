@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
 
     ANTHROPIC_API_KEY: SecretToken = SecretStr("")
+    ANTHROPIC_BASE_URL: str = ""  # 9router: su clave va en ANTHROPIC_API_KEY
+    JEV_MODELOS: str = "openrouter/typesafe/jev-1.13"  # modelos de Jev en 9router, en orden, separados por comas
     OPENAI_API_KEY: SecretToken = SecretStr("")
     TAVILY_API_KEY: SecretToken = SecretStr("")
     TYPESAFE_API_KEY: SecretToken = SecretStr("")
