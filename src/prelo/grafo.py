@@ -150,23 +150,27 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
         deps.notificar(peca)
         return {"violacoes": violacoes, "peca_id": peca.id}
 
+    # ponytail: los canales se deciden en serie (linkedin y luego instagram). En paralelo, una rama pausada impide
+    # que el paso avance y "editar" en la otra nunca regenera la pieza. Para aprobarlas a la vez: un hilo por canal.
+    seguinte = "adaptar_carrossel" if "instagram" in deps.adaptar else END
+
     def aprovar(estado: _Estado) -> Command:
         resposta = interrupt({"peca_id": estado["peca_id"], "violacoes": estado["violacoes"]})
         decisao, comentario = resposta["decisao"], resposta.get("comentario")
         atualizacao = {"decisao": decisao, "comentario": comentario}
         if decisao == "aprovado":
-            # Se aplica aquí y no en un nodo posterior: con la rama instagram pausada, el paso no avanzaría.
             repo.atualizar_peca(estado["peca_id"], status="aprovada", decisao="aprovado", comentario=comentario)
             repo.atualizar_post(estado["post_id"], estado="aprovado")
-            return Command(update=atualizacao, goto=END)
+            return Command(update=atualizacao, goto=seguinte)
         if decisao == "editar":
             # La pieza vieja queda reemplazada por la que saldrá del adaptador con el comentario.
             repo.atualizar_peca(estado["peca_id"], status="descartada", decisao="editar", comentario=comentario)
             return Command(update=atualizacao, goto="adaptar_linkedin")
         if decisao == "descartar":
             repo.atualizar_peca(estado["peca_id"], status="descartada", decisao="descartar", comentario=comentario)
-            repo.atualizar_post(estado["post_id"], estado="descartado")
-            return Command(update=atualizacao, goto=END)
+            if seguinte == END:
+                repo.atualizar_post(estado["post_id"], estado="descartado")
+            return Command(update=atualizacao, goto=seguinte)
         raise ValueError(f"decisao desconocida: {decisao!r}")
 
     def adaptar_carrossel(estado: _Estado) -> dict:
@@ -216,12 +220,11 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     g.add_node("esperar_deploy", esperar_deploy)
     g.add_node("adaptar_linkedin", adaptar_linkedin)
     g.add_node("revisar_linkedin", revisar_linkedin)
-    g.add_node("aprovar", aprovar, destinations=("adaptar_linkedin", END))
+    g.add_node("aprovar", aprovar, destinations=("adaptar_linkedin", seguinte))
     if "instagram" in deps.adaptar:
         g.add_node("adaptar_carrossel", adaptar_carrossel)
         g.add_node("revisar_carrossel", revisar_carrossel)
         g.add_node("aprovar_carrossel", aprovar_carrossel, destinations=("adaptar_carrossel", END))
-        g.add_edge("esperar_deploy", "adaptar_carrossel")
         g.add_edge("adaptar_carrossel", "revisar_carrossel")
         g.add_edge("revisar_carrossel", "aprovar_carrossel")
     g.add_edge(START, "investigar")

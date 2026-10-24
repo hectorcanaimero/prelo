@@ -53,14 +53,10 @@ class _FiltroSemToken(logging.Filter):
         if record.args:
             if isinstance(record.args, dict):
                 record.args = {
-                    k: _ocultar_token(v, segredo) if isinstance(v, str) else v
-                    for k, v in record.args.items()
+                    k: _ocultar_token(v, segredo) if isinstance(v, str) else v for k, v in record.args.items()
                 }
             elif isinstance(record.args, tuple):
-                record.args = tuple(
-                    _ocultar_token(a, segredo) if isinstance(a, str) else a
-                    for a in record.args
-                )
+                record.args = tuple(_ocultar_token(a, segredo) if isinstance(a, str) else a for a in record.args)
         return True
 
 

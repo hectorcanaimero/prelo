@@ -90,10 +90,8 @@ def registrar(
         respond(f"Recibí el tema: {tema}")
 
     def decidir(decisao, meta, client, comentario=None):
-        if comentario is None:
-            retomar(meta["post_id"], decisao)
-        else:
-            retomar(meta["post_id"], decisao, comentario)
+        # `peca_id` elige la pausa: linkedin e instagram pueden esperar aprobación a la vez en el mismo post.
+        retomar(meta["post_id"], decisao, comentario, peca_id=meta["peca_id"])
         peca = repo.ler_peca(meta["peca_id"])
         client.chat_update(
             channel=meta["channel"], ts=meta["ts"], text=ESTADOS[decisao], blocks=blocos(peca, repo, ESTADOS[decisao])
