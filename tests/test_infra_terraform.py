@@ -11,7 +11,7 @@ REGLAS = ("aws_vpc_security_group_ingress_rule", "aws_vpc_security_group_egress_
 def _blocks(texto: str, tipo: str) -> list[str]:
     """Cuerpos de `resource "<tipo>" "x" { ... }` (llave de cierre en columna 0)."""
     patron = r'^resource "' + tipo + r'" "[^"]+" \{\n(.*?)^\}'
-    return re.findall(patron, texto, re.S | re.M)
+    return re.findall(patron, texto, re.DOTALL | re.MULTILINE)
 
 
 def test_sg_solo_abre_443_a_internet():
