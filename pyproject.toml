@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings",
     "slack-bolt",
     "tavily-python",
+    "typesafe-sdk>=0.7.5",
     "uvicorn",
 ]
 

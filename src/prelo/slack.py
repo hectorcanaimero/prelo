@@ -61,14 +61,29 @@ def blocos(peca: Peca, repo: Repositorio, estado: str | None = None) -> list[dic
     return out
 
 
+def _blocos_sugestoes(temas: list[dict[str, str]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for t in temas:
+        out.append(_md(f"*{t['tema']}*\n_{t['origem']}_ · <{t['link']}|link>"))
+        boton = {
+            "type": "button",
+            "action_id": "prelo_escolher",
+            "value": t["tema"],
+            "text": {"type": "plain_text", "text": "Escribir este"},
+        }
+        out.append({"type": "actions", "elements": [boton]})
+    return out
+
+
 def registrar(
     app: Any,
     *,
-    iniciar: Callable[[str], str],
+    iniciar: Callable[..., str],
     retomar: Callable[..., None],
     repo: Repositorio,
     canal: str,
     cliente: Any,
+    sugerir: Callable[[], list[dict[str, str]]] | None = None,
 ) -> Callable[[Peca], None]:
     """Registra los handlers en `app` y devuelve `notificar(peca)`."""
 
@@ -79,12 +94,31 @@ def registrar(
     def comando(ack, command, respond):
         ack()
         tema = (command.get("text") or "").strip()
+        if tema == "sugerir" and sugerir:
+            try:
+                temas = sugerir()[:3]
+            except Exception as e:  # noqa: BLE001
+                respond(f"No pude sugerir temas: {e}")
+                return
+            respond(text="Temas sugeridos", blocks=_blocos_sugestoes(temas))
+            return
         if not tema:
-            respond("Uso: /prelo <tema>")
+            respond("Uso: /prelo <tema> — o /prelo sugerir para recibir 3 temas")
             return
         try:
             iniciar(tema)
         except Exception as e:  # noqa: BLE001 - el motivo va al editor
+            respond(f"No pude iniciar el post: {e}")
+            return
+        respond(f"Recibí el tema: {tema}")
+
+    @app.action("prelo_escolher")
+    def escolher(ack, action, respond):
+        ack()
+        tema = action["value"]
+        try:
+            iniciar(tema, origem="sugestao")
+        except Exception as e:  # noqa: BLE001
             respond(f"No pude iniciar el post: {e}")
             return
         respond(f"Recibí el tema: {tema}")
