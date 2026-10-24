@@ -16,7 +16,6 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
 
-
 # ---------------------------------------------------------------------------
 # TypedDicts del flujo (lo que viaja por EstadoPost y por los prompts).
 # ---------------------------------------------------------------------------
