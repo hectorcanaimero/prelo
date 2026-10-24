@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 import psycopg
 import pytest
+from test_slack import AppFalsa, ClienteFalso, RepoFalso
 
 from prelo import slack
 from prelo.db.conexao import conectar
@@ -10,7 +11,6 @@ from prelo.db.migrar import DIR, aplicar_migracoes
 from prelo.db.repositorio import RepositorioPg
 from prelo.interfaces import Peca, Post, Publicacao
 from prelo.metricas import coletar
-from tests.test_slack import AppFalsa, ClienteFalso, RepoFalso
 
 
 class RepoMem:
