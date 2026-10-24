@@ -21,7 +21,9 @@ libre. En esta fase no hay blog: tras `revisar` el grafo va directo a los deriva
 docs/arch/001-prelo.md).
 
 Convenciones para todas las tareas: Python 3.12 con `uv`, código en `src/prelo/`, tests con `pytest` en `tests/`.
-Los tests que necesitan Postgres usan la fixture `pg_url` de `tests/conftest.py` (F1.1.T2). Ningún test llama a un
+Las tareas que dependen solo de F1.1.T4 corren en paralelo con la base de datos: en sus tests usan un `Repositorio`
+en memoria escrito en el propio test. La fixture `pg_url` de `tests/conftest.py` (F1.1.T2) la usan solo las tareas
+que dependen de F1.1.T2. Ningún test llama a un
 servicio externo real: se usan dobles o `respx` para HTTP.
 
 ## F1.1 — Package: esqueleto
@@ -72,11 +74,11 @@ migraciones SQL numeradas (`src/prelo/db/migracoes/NNN_*.sql`, registra las apli
 idempotente) y `001_inicial.sql` con las tablas `posts`, `fontes`, `pecas`, `publicacoes` y `custos`. La tabla
 `metricas` NO va aquí: llega en F4.1.
 
-Expón un `Repositorio` (`src/prelo/db/repositorio.py`) con dataclasses `Post`, `Fonte`, `Peca`, `Publicacao`, `Custo`
-y los métodos que usan los demás componentes: crear y leer posts, guardar fuentes, crear/actualizar piezas
+Implementa en `src/prelo/db/repositorio.py` el protocolo `Repositorio` de `src/prelo/interfaces.py` (F1.1.T4), con las
+dataclasses `Post`, `Peca`, `Publicacao` y `Custo` que define ese archivo, y los métodos que usan los demás componentes: crear y leer posts, guardar fuentes, crear/actualizar piezas
 (`status`, `decisao`, `comentario`, `agendada_para`), listar piezas por `status` y canal, registrar publicaciones y
-costos, y sumar costos por post y agente. `Peca` y `Publicacao` son las dataclasses que cita el `Publicador` de
-*Interfaces*.
+costos, y sumar costos por post y agente. No cambies las firmas de `interfaces.py`: si falta algo, añádelo solo en la
+implementación.
 
 `tests/conftest.py` define la fixture `pg_url`: lee `TEST_DATABASE_URL`, salta el test si no existe, crea un schema
 limpio por test y aplica las migraciones.
@@ -88,7 +90,7 @@ post con dos fuentes se lee con sus dos fuentes; cambiar el `status` de una piez
 - **Model**: muse/muse-wonder-1.0
 - **Estimate**: 3h
 - **Reason**: SQL y repositorio sin decisiones de diseño abiertas.
-- **Dependencies**: F1.1.T1
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/db/__init__.py`
   - `src/prelo/db/conexao.py`
@@ -98,11 +100,10 @@ post con dos fuentes se lee con sus dos fuentes; cambiar el `status` de una piez
   - `tests/conftest.py`
   - `tests/test_db.py`
 
-### F1.1.T3 — Interfaces, estado y grafo con dobles
+### F1.1.T3 — Grafo con dobles
 
-Escribe `src/prelo/interfaces.py` y `src/prelo/estado.py` exactamente como los fija *Interfaces* de
-docs/arch/001-prelo.md (`Fonte`, `Violacao`, `Texto`, `EstadoPost`, `Modelo`, `Buscador`, `Publicador`,
-`Dependencias`, y `Regras` como tipo opaco que define marca). Después, `src/prelo/grafo.py` con
+Usa `src/prelo/interfaces.py` y `src/prelo/estado.py` tal como los deja F1.1.T4 (no los cambies) y escribe
+`src/prelo/grafo.py` con
 `construir(deps, checkpointer)`, `iniciar(grafo, tema, origem) -> post_id` y `retomar(grafo, post_id, decisao,
 comentario=None)`.
 
@@ -110,25 +111,53 @@ El flujo de F1 (sección *grafo*): `investigar → redigir → revisar`; si hay 
 `redigir` con el feedback; luego `adaptar_linkedin → revisar → aprovar` (`interrupt()`, con `deps.notificar` antes de
 pausar) `→ agendar → END`. "editar" vuelve al adaptador con el comentario; "descartar" marca la pieza `descartada` y
 va a `END`. `agendar` solo pone la pieza en `aprovada` con `decisao = aprovado`: publicar es trabajo de la agenda
-(D9). `thread_id = post_id`. El grafo escribe en `posts`, `fontes` y `pecas` vía `deps.repo` y no importa ningún
-cliente externo.
+(D9). `thread_id = post_id`. El grafo escribe en `posts`, `fontes` y `pecas` vía `deps.repo` (el protocolo `Repositorio`) y no importa
+ningún cliente externo. Esta tarea corre en paralelo con la base de datos (F1.1.T2): en los tests usa un `Repositorio`
+en memoria escrito en el propio test, y para la prueba de reinicio una fixture local que lee `TEST_DATABASE_URL` y
+salta si no existe (`PostgresSaver.setup()` crea sus propias tablas; no hacen falta las migraciones).
 
 Done when: these tests pass in `tests/test_grafo.py`, usando dobles para todas las funciones de `Dependencias` —
 un tema sin violaciones llega a `aprovar` y queda pausado con la pieza `pendente`; `retomar(..., "aprovado")` deja la
 pieza `aprovada` con `decisao = aprovado`; un borrador que siempre viola se reescribe exactamente 2 veces y llega a
 `aprovar` con `violacoes` no vacías; "editar" llama al adaptador con el comentario y vuelve a pausar; "descartar"
-deja la pieza `descartada` y no se aprueba nada; con `PostgresSaver` (fixture `pg_url`), construir un grafo nuevo
+deja la pieza `descartada` y no se aprueba nada; con `PostgresSaver` (fixture local sobre `TEST_DATABASE_URL`), construir un grafo nuevo
 tras la pausa y aprobar con él aprueba exactamente el texto que se pausó (FR-8).
 
 - **Model**: claude/claude-opus-4-7
-- **Estimate**: 5h
-- **Reason**: Fija los contratos de todo el proyecto y el flujo con interrupt/checkpointer; diseño crítico.
-- **Dependencies**: F1.1.T2
+- **Estimate**: 4h
+- **Reason**: Flujo con interrupt/checkpointer y reintentos; diseño crítico.
+- **Dependencies**: F1.1.T4
+- **Files**:
+  - `src/prelo/grafo.py`
+  - `tests/test_grafo.py`
+
+### F1.1.T4 — Contratos: interfaces.py y estado.py
+
+Escribe `src/prelo/interfaces.py` y `src/prelo/estado.py` exactamente como los fija *Interfaces* de
+docs/arch/001-prelo.md: `Fonte`, `Violacao`, `Texto`, `EstadoPost`, `Modelo`, `Buscador`, `Publicador`,
+`Dependencias` y `Regras` (tipo opaco que rellena marca). Añade lo que el ARCH deja implícito para que las tareas
+paralelas no inventen nada:
+- dataclasses `Post`, `Peca`, `Publicacao` y `Custo` con los campos de *Data model*;
+- un `Protocol` `Repositorio` con los métodos que usan grafo, agenda, slack y custos (crear y leer posts, guardar
+  fuentes, crear/actualizar piezas, listar piezas por `status` y canal, registrar publicaciones y costos, sumar
+  costos por post y agente), cada uno con su docstring;
+- un `Protocol` `Aviso` (`avisar(texto: str) -> None`) para los avisos en Slack de la agenda.
+
+Solo tipos y protocolos: ninguna implementación ni dependencia externa. Es el contrato del que parten 9 tareas en
+paralelo, así que cada firma debe estar completa y documentada.
+
+Done when: these tests pass in `tests/test_interfaces.py` — un `Repositorio` en memoria escrito en el test cumple el
+protocolo (comprobado con `typing.runtime_checkable` + `isinstance`); un `EstadoPost` de ejemplo con los tres idiomas
+pasa la comprobación de tipos de `pyright` o `mypy`; importar `interfaces` no importa ningún SDK externo.
+
+- **Model**: claude/claude-opus-4-7
+- **Estimate**: 1.5h
+- **Reason**: Contrato del que dependen todas las tareas paralelas; un error aquí se multiplica.
+- **Dependencies**: F1.1.T1
 - **Files**:
   - `src/prelo/interfaces.py`
   - `src/prelo/estado.py`
-  - `src/prelo/grafo.py`
-  - `tests/test_grafo.py`
+  - `tests/test_interfaces.py`
 
 ## F1.2 — Package: marca
 
@@ -151,7 +180,7 @@ texto limpio devuelve lista vacía; `carregar_regras` con `PRELO_BLOQUEIA` vací
 - **Model**: claude/claude-sonnet-4-6
 - **Estimate**: 3h
 - **Reason**: Lógica determinista con casos borde de normalización; standard con buenos tests.
-- **Dependencies**: F1.1.T3
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/marca.py`
   - `marca.toml`
@@ -175,7 +204,7 @@ serializado no contiene el valor de la API key.
 - **Model**: muse/muse-wonder-1.0
 - **Estimate**: 3h
 - **Reason**: Wrapper de SDK con registro de costos; patrón conocido.
-- **Dependencies**: F1.1.T3
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/modelo.py`
   - `src/prelo/custos.py`
@@ -196,7 +225,7 @@ Slack).
 - **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 2h
 - **Reason**: Integración HTTP sencilla con validación.
-- **Dependencies**: F1.1.T3
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/buscador.py`
   - `src/prelo/agentes/investigador.py`
@@ -221,7 +250,7 @@ inventa un link cuando es `None`.
 - **Model**: claude/claude-sonnet-4-6
 - **Estimate**: 3h
 - **Reason**: Prompts y parseo; la calidad real la miden las evals de F1.6.
-- **Dependencies**: F1.1.T3
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/agentes/redator.py`
   - `src/prelo/agentes/adaptador_linkedin.py`
@@ -249,7 +278,7 @@ y lista las violaciones; pulsar Aprobar llama a `retomar(post_id, "aprovado")`; 
 - **Model**: claude/claude-sonnet-4-6
 - **Estimate**: 4h
 - **Reason**: Integración Bolt con bloques y modales; varios caminos pero sin diseño nuevo.
-- **Dependencies**: F1.1.T3
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/slack.py`
   - `slack-manifest.yml`
@@ -277,7 +306,7 @@ llama al publicador y queda una `Publicacao` con canal, URL y fecha; un fallo de
 - **Model**: muse/muse-wonder-1.0
 - **Estimate**: 4h
 - **Reason**: Lógica de fechas con muchos bordes y una regla de seguridad (FR-7).
-- **Dependencies**: F1.1.T3
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/agenda.py`
   - `tests/test_agenda.py`
@@ -296,7 +325,7 @@ la cabecera de autorización lleva el token pero ningún log lo muestra.
 - **Model**: agy/gemini-4-argon-medium
 - **Estimate**: 2h
 - **Reason**: Cliente HTTP acotado.
-- **Dependencies**: F1.1.T3
+- **Dependencies**: F1.1.T4
 - **Files**:
   - `src/prelo/publicadores/linkedin.py`
   - `tests/test_linkedin.py`
@@ -348,7 +377,7 @@ adaptador `linkedin`; con dobles, un `/prelo` simulado termina en una pieza pend
 - **Model**: claude/claude-sonnet-4-6
 - **Estimate**: 4h
 - **Reason**: Cableado de piezas ya probadas más un endpoint autenticado.
-- **Dependencies**: F1.2.T1, F1.3.T1, F1.3.T2, F1.3.T3, F1.4.T1, F1.5.T1, F1.5.T2
+- **Dependencies**: F1.1.T2, F1.1.T3, F1.2.T1, F1.3.T1, F1.3.T2, F1.3.T3, F1.4.T1, F1.5.T1, F1.5.T2
 - **Files**:
   - `src/prelo/app.py`
   - `src/prelo/api.py`

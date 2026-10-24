@@ -60,12 +60,12 @@
       "id": "F1.1.T2",
       "phase": 1,
       "title": "Base de datos: migración inicial y repositorio",
-      "description": "Implementa *db* según *Data model* de docs/arch/001-prelo.md: conexión a Postgres con `psycopg`, un aplicador de\nmigraciones SQL numeradas (`src/prelo/db/migracoes/NNN_*.sql`, registra las aplicadas en una tabla propia y es\nidempotente) y `001_inicial.sql` con las tablas `posts`, `fontes`, `pecas`, `publicacoes` y `custos`. La tabla\n`metricas` NO va aquí: llega en F4.1.\n\nExpón un `Repositorio` (`src/prelo/db/repositorio.py`) con dataclasses `Post`, `Fonte`, `Peca`, `Publicacao`, `Custo`\ny los métodos que usan los demás componentes: crear y leer posts, guardar fuentes, crear/actualizar piezas\n(`status`, `decisao`, `comentario`, `agendada_para`), listar piezas por `status` y canal, registrar publicaciones y\ncostos, y sumar costos por post y agente. `Peca` y `Publicacao` son las dataclasses que cita el `Publicador` de\n*Interfaces*.\n\n`tests/conftest.py` define la fixture `pg_url`: lee `TEST_DATABASE_URL`, salta el test si no existe, crea un schema\nlimpio por test y aplica las migraciones.\n\nDone when: these tests pass in `tests/test_db.py` — aplicar las migraciones dos veces no falla ni duplica nada; un\npost con dos fuentes se lee con sus dos fuentes; cambiar el `status` de una pieza a `aprovada` y listar por ese\n`status` la devuelve; la suma de costos de un post agrupa por agente y da el total correcto.",
+      "description": "Implementa *db* según *Data model* de docs/arch/001-prelo.md: conexión a Postgres con `psycopg`, un aplicador de\nmigraciones SQL numeradas (`src/prelo/db/migracoes/NNN_*.sql`, registra las aplicadas en una tabla propia y es\nidempotente) y `001_inicial.sql` con las tablas `posts`, `fontes`, `pecas`, `publicacoes` y `custos`. La tabla\n`metricas` NO va aquí: llega en F4.1.\n\nImplementa en `src/prelo/db/repositorio.py` el protocolo `Repositorio` de `src/prelo/interfaces.py` (F1.1.T4), con las\ndataclasses `Post`, `Peca`, `Publicacao` y `Custo` que define ese archivo, y los métodos que usan los demás componentes: crear y leer posts, guardar fuentes, crear/actualizar piezas\n(`status`, `decisao`, `comentario`, `agendada_para`), listar piezas por `status` y canal, registrar publicaciones y\ncostos, y sumar costos por post y agente. No cambies las firmas de `interfaces.py`: si falta algo, añádelo solo en la\nimplementación.\n\n`tests/conftest.py` define la fixture `pg_url`: lee `TEST_DATABASE_URL`, salta el test si no existe, crea un schema\nlimpio por test y aplica las migraciones.\n\nDone when: these tests pass in `tests/test_db.py` — aplicar las migraciones dos veces no falla ni duplica nada; un\npost con dos fuentes se lee con sus dos fuentes; cambiar el `status` de una pieza a `aprovada` y listar por ese\n`status` la devuelve; la suma de costos de un post agrupa por agente y da el total correcto.",
       "model": "muse/muse-wonder-1.0",
       "reason": "SQL y repositorio sin decisiones de diseño abiertas.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T1"
+        "F1.1.T4"
       ],
       "estimateHours": 3.0,
       "files": [
@@ -83,15 +83,15 @@
     {
       "id": "F1.1.T3",
       "phase": 1,
-      "title": "Interfaces, estado y grafo con dobles",
-      "description": "Escribe `src/prelo/interfaces.py` y `src/prelo/estado.py` exactamente como los fija *Interfaces* de\ndocs/arch/001-prelo.md (`Fonte`, `Violacao`, `Texto`, `EstadoPost`, `Modelo`, `Buscador`, `Publicador`,\n`Dependencias`, y `Regras` como tipo opaco que define marca). Después, `src/prelo/grafo.py` con\n`construir(deps, checkpointer)`, `iniciar(grafo, tema, origem) -\u003e post_id` y `retomar(grafo, post_id, decisao,\ncomentario=None)`.\n\nEl flujo de F1 (sección *grafo*): `investigar → redigir → revisar`; si hay violaciones y `tentativas \u003c 2`, vuelve a\n`redigir` con el feedback; luego `adaptar_linkedin → revisar → aprovar` (`interrupt()`, con `deps.notificar` antes de\npausar) `→ agendar → END`. \"editar\" vuelve al adaptador con el comentario; \"descartar\" marca la pieza `descartada` y\nva a `END`. `agendar` solo pone la pieza en `aprovada` con `decisao = aprovado`: publicar es trabajo de la agenda\n(D9). `thread_id = post_id`. El grafo escribe en `posts`, `fontes` y `pecas` vía `deps.repo` y no importa ningún\ncliente externo.\n\nDone when: these tests pass in `tests/test_grafo.py`, usando dobles para todas las funciones de `Dependencias` —\nun tema sin violaciones llega a `aprovar` y queda pausado con la pieza `pendente`; `retomar(..., \"aprovado\")` deja la\npieza `aprovada` con `decisao = aprovado`; un borrador que siempre viola se reescribe exactamente 2 veces y llega a\n`aprovar` con `violacoes` no vacías; \"editar\" llama al adaptador con el comentario y vuelve a pausar; \"descartar\"\ndeja la pieza `descartada` y no se aprueba nada; con `PostgresSaver` (fixture `pg_url`), construir un grafo nuevo\ntras la pausa y aprobar con él aprueba exactamente el texto que se pausó (FR-8).",
+      "title": "Grafo con dobles",
+      "description": "Usa `src/prelo/interfaces.py` y `src/prelo/estado.py` tal como los deja F1.1.T4 (no los cambies) y escribe\n`src/prelo/grafo.py` con\n`construir(deps, checkpointer)`, `iniciar(grafo, tema, origem) -\u003e post_id` y `retomar(grafo, post_id, decisao,\ncomentario=None)`.\n\nEl flujo de F1 (sección *grafo*): `investigar → redigir → revisar`; si hay violaciones y `tentativas \u003c 2`, vuelve a\n`redigir` con el feedback; luego `adaptar_linkedin → revisar → aprovar` (`interrupt()`, con `deps.notificar` antes de\npausar) `→ agendar → END`. \"editar\" vuelve al adaptador con el comentario; \"descartar\" marca la pieza `descartada` y\nva a `END`. `agendar` solo pone la pieza en `aprovada` con `decisao = aprovado`: publicar es trabajo de la agenda\n(D9). `thread_id = post_id`. El grafo escribe en `posts`, `fontes` y `pecas` vía `deps.repo` (el protocolo `Repositorio`) y no importa\nningún cliente externo. Esta tarea corre en paralelo con la base de datos (F1.1.T2): en los tests usa un `Repositorio`\nen memoria escrito en el propio test, y para la prueba de reinicio una fixture local que lee `TEST_DATABASE_URL` y\nsalta si no existe (`PostgresSaver.setup()` crea sus propias tablas; no hacen falta las migraciones).\n\nDone when: these tests pass in `tests/test_grafo.py`, usando dobles para todas las funciones de `Dependencias` —\nun tema sin violaciones llega a `aprovar` y queda pausado con la pieza `pendente`; `retomar(..., \"aprovado\")` deja la\npieza `aprovada` con `decisao = aprovado`; un borrador que siempre viola se reescribe exactamente 2 veces y llega a\n`aprovar` con `violacoes` no vacías; \"editar\" llama al adaptador con el comentario y vuelve a pausar; \"descartar\"\ndeja la pieza `descartada` y no se aprueba nada; con `PostgresSaver` (fixture local sobre `TEST_DATABASE_URL`), construir un grafo nuevo\ntras la pausa y aprobar con él aprueba exactamente el texto que se pausó (FR-8).",
       "model": "claude/claude-opus-4-7",
-      "reason": "Fija los contratos de todo el proyecto y el flujo con interrupt/checkpointer; diseño crítico.",
+      "reason": "Flujo con interrupt/checkpointer y reintentos; diseño crítico.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T2"
+        "F1.1.T4"
       ],
-      "estimateHours": 5.0,
+      "estimateHours": 4.0,
       "files": [
         "src/prelo/interfaces.py",
         "src/prelo/estado.py",
@@ -110,7 +110,7 @@
       "reason": "Lógica determinista con casos borde de normalización; standard con buenos tests.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T3"
+        "F1.1.T4"
       ],
       "estimateHours": 3.0,
       "files": [
@@ -130,7 +130,7 @@
       "reason": "Wrapper de SDK con registro de costos; patrón conocido.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T3"
+        "F1.1.T4"
       ],
       "estimateHours": 3.0,
       "files": [
@@ -150,7 +150,7 @@
       "reason": "Integración HTTP sencilla con validación.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T3"
+        "F1.1.T4"
       ],
       "estimateHours": 2.0,
       "files": [
@@ -170,7 +170,7 @@
       "reason": "Prompts y parseo; la calidad real la miden las evals de F1.6.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T3"
+        "F1.1.T4"
       ],
       "estimateHours": 3.0,
       "files": [
@@ -190,7 +190,7 @@
       "reason": "Integración Bolt con bloques y modales; varios caminos pero sin diseño nuevo.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T3"
+        "F1.1.T4"
       ],
       "estimateHours": 4.0,
       "files": [
@@ -210,7 +210,7 @@
       "reason": "Lógica de fechas con muchos bordes y una regla de seguridad (FR-7).",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T3"
+        "F1.1.T4"
       ],
       "estimateHours": 4.0,
       "files": [
@@ -229,7 +229,7 @@
       "reason": "Cliente HTTP acotado.",
       "status": "backlog",
       "dependencies": [
-        "F1.1.T3"
+        "F1.1.T4"
       ],
       "estimateHours": 2.0,
       "files": [
@@ -271,6 +271,8 @@
       "reason": "Cableado de piezas ya probadas más un endpoint autenticado.",
       "status": "backlog",
       "dependencies": [
+        "F1.1.T2",
+        "F1.1.T3",
         "F1.2.T1",
         "F1.3.T1",
         "F1.3.T2",
@@ -671,6 +673,26 @@
         "tests/test_app.py"
       ],
       "specRef": "f4-metricas-nube.md#F4.5.T1",
+      "comments": []
+    },
+    {
+      "id": "F1.1.T4",
+      "phase": 1,
+      "title": "Contratos: interfaces.py y estado.py",
+      "description": "Escribe `src/prelo/interfaces.py` y `src/prelo/estado.py` exactamente como los fija *Interfaces* de\ndocs/arch/001-prelo.md: `Fonte`, `Violacao`, `Texto`, `EstadoPost`, `Modelo`, `Buscador`, `Publicador`,\n`Dependencias` y `Regras` (tipo opaco que rellena marca). Añade lo que el ARCH deja implícito para que las tareas\nparalelas no inventen nada:\n- dataclasses `Post`, `Peca`, `Publicacao` y `Custo` con los campos de *Data model*;\n- un `Protocol` `Repositorio` con los métodos que usan grafo, agenda, slack y custos (crear y leer posts, guardar\n  fuentes, crear/actualizar piezas, listar piezas por `status` y canal, registrar publicaciones y costos, sumar\n  costos por post y agente), cada uno con su docstring;\n- un `Protocol` `Aviso` (`avisar(texto: str) -\u003e None`) para los avisos en Slack de la agenda.\n\nSolo tipos y protocolos: ninguna implementación ni dependencia externa. Es el contrato del que parten 9 tareas en\nparalelo, así que cada firma debe estar completa y documentada.\n\nDone when: these tests pass in `tests/test_interfaces.py` — un `Repositorio` en memoria escrito en el test cumple el\nprotocolo (comprobado con `typing.runtime_checkable` + `isinstance`); un `EstadoPost` de ejemplo con los tres idiomas\npasa la comprobación de tipos de `pyright` o `mypy`; importar `interfaces` no importa ningún SDK externo.",
+      "model": "claude/claude-opus-4-7",
+      "reason": "Contrato del que dependen todas las tareas paralelas; un error aquí se multiplica.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T1"
+      ],
+      "estimateHours": 1.5,
+      "files": [
+        "src/prelo/interfaces.py",
+        "src/prelo/estado.py",
+        "tests/test_interfaces.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.1.T4",
       "comments": []
     }
   ]
