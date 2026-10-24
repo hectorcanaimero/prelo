@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+# Docker y Compose (apt por https: el security group solo deja salir 443)
+sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources
+apt-get update -y
+apt-get install -y ca-certificates curl jq docker.io docker-compose-v2
+snap install aws-cli --classic
+systemctl enable --now docker
+
+# Volumen EBS de Postgres: el primer disco sin particiones ni montajes que no sea el raíz.
+# (/dev/sdf aparece como /dev/nvme1n1 en instancias Nitro.)
+ROOT=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)")
+DEV=$(lsblk -dpno NAME,TYPE | awk '$2=="disk"{print $1}' | grep -v "$ROOT" | head -n1)
+if ! blkid "$DEV" >/dev/null 2>&1; then mkfs.ext4 "$DEV"; fi
+mkdir -p /data/postgres
+grep -q /data/postgres /etc/fstab || echo "UUID=$(blkid -s UUID -o value "$DEV") /data/postgres ext4 defaults,nofail 0 2" >> /etc/fstab
+mount -a
+
+# .env desde SSM Parameter Store: los secretos no viven en el repo ni en Terraform.
+mkdir -p /opt/prelo
+umask 077
+aws ssm get-parameters-by-path --region ${region} --path ${ssm_prefix} --with-decryption --recursive \
+  --query 'Parameters[].[Name,Value]' --output json |
+  jq -r '.[] | (.[0] | split("/") | last) + "=" + .[1]' > /opt/prelo/.env
+
+# Postgres sobre el volumen EBS
+cat > /opt/prelo/docker-compose.override.yml <<'YML'
+services:
+  postgres:
+    volumes:
+      - /data/postgres:/var/lib/postgresql/data
+YML
