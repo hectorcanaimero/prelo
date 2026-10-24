@@ -113,6 +113,23 @@ def test_deploy_sin_url_falla_y_sigue_pausado_en_esperar_deploy():
     assert d.urls_linkedin == []
 
 
+def test_traduccion_sin_es_conserva_el_rascunho_es_para_los_derivados():
+    d = DoblesBlog()
+    g = grafo.construir(
+        replace(d.deps(), traduzir=lambda texto, *, post_id: {i: {**texto, "corpo": i} for i in ("pt", "en")}),
+        InMemorySaver(),
+    )
+    post_id = grafo.iniciar(g, "agentes", "editor")
+    grafo.retomar(g, post_id, "aprovado")
+
+    grafo.retomar(g, post_id, url_blog=URL_BLOG)
+
+    rascunho = g.get_state({"configurable": {"thread_id": post_id}}).values["rascunho"]
+    assert set(rascunho) == {"es", "pt", "en"}
+    assert rascunho["es"]["corpo"] == "borrador 1"
+    assert _pausado_en(g, post_id) == ("aprovar",)
+
+
 def test_sin_abrir_pr_va_directo_a_los_derivados_como_en_f1():
     d = DoblesBlog()
     g = grafo.construir(replace(d.deps(), abrir_pr=None), InMemorySaver())

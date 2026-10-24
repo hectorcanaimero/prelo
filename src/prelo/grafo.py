@@ -97,7 +97,8 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
         )
         repo.criar_peca(peca)
         repo.atualizar_post(post_id, estado="aguardando_merge")
-        return {"rascunho": textos, "peca_blog_id": peca.id, "url_pr": url_pr}
+        # `rascunho` es `dict[str, Texto]` por idioma: suma pt/en y deja el "es" revisado para los derivados.
+        return {"rascunho": {**textos, "es": estado["rascunho"]["es"]}, "peca_blog_id": peca.id, "url_pr": url_pr}
 
     def pr_blog(estado: _Estado) -> Command:
         # Lo reanuda el webhook de GitHub: "aprovado" si el PR se mergeó, "descartar" si se cerró sin merge.
