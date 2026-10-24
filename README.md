@@ -3,19 +3,21 @@
 Mesa editorial de agentes: a partir de un tema investiga, redacta, revisa la marca y adapta la pieza a LinkedIn. Una
 persona la aprueba en Slack y Prelo la agenda y la publica. Nada sale sin esa aprobación.
 
-En F1 el canal es LinkedIn (post en pt-BR). Blog (es/pt/en) e Instagram llegan en F2 y F3. Diseño completo en
-[`docs/arch/001-prelo.md`](docs/arch/001-prelo.md).
+Canales: blog (es/pt/en, aprobado con el merge del PR en `site-guria`), LinkedIn (pt-BR) e Instagram (carrusel).
+Diseño completo en [`docs/arch/001-prelo.md`](docs/arch/001-prelo.md).
 
 ## Cómo funciona
 
 ```
-START → investigar → redigir → revisar ─┬─ ok o 2 reescrituras ─► adaptar_linkedin → revisar_linkedin → aprovar ⏸ (Slack)
-              ▲                         └─ violación (≤2) ─┐                ▲                              │
-              └──────────────────────────────────────────┘                └────────── editar ───────────┤
-                                                                   END ◄─ agendar ◄─── aprobado ────────┤
-                                                                   END ◄──────────── descartar ─────────┘
+START → investigar → redigir → revisar ─┬─ ok o 2 reescrituras ─► traduzir → pr_blog ⏸ (merge) → esperar_deploy ⏸
+              ▲                         └─ violación (≤2) ─┐                                          │
+              └──────────────────────────────────────────┘                                          ▼
+   adaptar_linkedin → revisar_linkedin → aprovar ⏸ (Slack) ──aprobado/descartar──► adaptar_carrossel → revisar_carrossel
+        ▲                                   │                                             ▲                    │
+        └───────────── editar ──────────────┘                                             └── editar ── aprovar_carrossel ⏸ → END
 ```
 
+- Los derivados se deciden en serie: primero LinkedIn y, al decidirlo, el carrusel. Descartar uno no afecta al otro.
 - `⏸` es un `interrupt()` de LangGraph: el post espera en Postgres (`PostgresSaver`) lo que haga falta, `thread_id` = `post_id`.
 - La revisión de marca es código determinista (`marca.toml` + `PRELO_BLOQUEIA`). Si tras 2 reescrituras sigue habiendo
   violaciones, Slack no ofrece "Aprobar".
