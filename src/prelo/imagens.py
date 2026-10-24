@@ -17,6 +17,7 @@ SIN_TEXTO = " Do not include any text, letters or numbers anywhere in the image.
 
 def gerar_imagem(prompt: str, *, post_id: str, openai: Any, repo: Repositorio) -> bytes:
     try:
+        # gpt-image-1 siempre responde en base64 (`b64_json`) y no acepta `response_format`: no hace falta pedirlo.
         resp = openai.images.generate(
             model=MODELO_IMAGEN, prompt=prompt + SIN_TEXTO, size="1024x1024", quality="medium"
         )
