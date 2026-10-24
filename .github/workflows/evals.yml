@@ -1,0 +1,23 @@
+name: Evals
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      PRELO_BLOQUEIA: ${{ secrets.PRELO_BLOQUEIA }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run pytest -q evals/test_runner.py
+      - name: Evals contra el LLM real
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::warning::ANTHROPIC_API_KEY vacío: se omiten las evals contra el LLM real"
+            exit 0
+          fi
+          uv run python evals/run.py

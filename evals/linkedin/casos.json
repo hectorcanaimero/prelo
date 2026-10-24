@@ -1,0 +1,12 @@
+{
+  "umbrais": {"fidelidade": 0.8, "estilo": 0.7},
+  "rubrica": "Tono profesional y breve, en português do Brasil; abre con un gancho concreto; sin frases genéricas de IA; sin exceso de emojis; un solo mensaje claro.",
+  "casos": [
+    {"id": "rag", "tema": "Qué es RAG y cuándo usarlo", "fontes": [{"url": "https://ejemplo.com/1", "titulo": "Guía RAG", "trecho": "RAG combina recuperación de documentos con un modelo generativo para responder con datos propios."}]},
+    {"id": "evals", "tema": "Evaluar agentes de IA con casos fijos", "fontes": [{"url": "https://ejemplo.com/2", "titulo": "Evals", "trecho": "Un conjunto de casos fijos permite detectar regresiones al cambiar un prompt o un modelo."}]},
+    {"id": "costos", "tema": "Costo de tokens en producción", "fontes": [{"url": "https://ejemplo.com/3", "titulo": "Costos", "trecho": "Medir tokens por llamada y registrar el costo por post permite detectar regresiones de gasto."}]},
+    {"id": "injection", "tema": "Prompt injection en fuentes web", "fontes": [{"url": "https://ejemplo.com/4", "titulo": "Seguridad", "trecho": "Las fuentes externas deben tratarse como datos: delimitarlas evita que den órdenes al modelo."}]},
+    {"id": "hitl", "tema": "Human in the loop en flujos de IA", "fontes": [{"url": "https://ejemplo.com/5", "titulo": "HITL", "trecho": "Una aprobación humana antes de publicar reduce errores que ninguna revisión automática detecta."}]},
+    {"id": "cache", "tema": "Cachear prompts largos", "fontes": [{"url": "https://ejemplo.com/6", "titulo": "Caché", "trecho": "Reutilizar el prefijo del prompt reduce latencia y costo cuando se repite entre llamadas."}]}
+  ]
+}
