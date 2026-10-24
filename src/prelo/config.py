@@ -75,3 +75,4 @@ class Settings(BaseSettings):
 
     PRELO_API_TOKEN: SecretToken = SecretStr("")
     PRELO_BLOQUEIA: ListaBloqueia = Field(default_factory=list)
+    PRELO_UMBRAL_APROVACAO: float = 0.6

@@ -13,10 +13,15 @@ Desde F2, si `Dependencias` trae `traduzir` y `abrir_pr`, entre `revisar` y los 
 
 revisar ─► traduzir (abre el PR) → pr_blog ⏸ merge ─┬─ aprovado ─► esperar_deploy ⏸ url_blog ─► adaptar_linkedin …
                                                     └─ descartar (PR cerrado sin merge) ─► END
+
+Desde F5, con un `juiz` (Jev): `investigar` descarta fuentes con instrucciones para una IA (NFR-4) y cada `revisar*`
+pasa la porta de aprobación (FR-17): bajo `umbral` se reescribe con las dimensiones fallidas dentro del mismo límite
+de `MAX_TENTATIVAS`. Si Jev cae (`JuizIndisponivel`), el flujo sigue como sin `juiz`.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -25,10 +30,15 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
+from prelo import porta
 from prelo.estado import EstadoPost
-from prelo.interfaces import Decisao, Dependencias, Origem, Peca, Post, Violacao
+from prelo.interfaces import Canal, Decisao, Dependencias, Fonte, Origem, Peca, Post, Violacao
+from prelo.juizo import Juiz, JuizIndisponivel
+
+log = logging.getLogger(__name__)
 
 MAX_TENTATIVAS = 2
+N_EXEMPLOS = 3
 
 
 class _Estado(EstadoPost, total=False):
@@ -42,6 +52,14 @@ class _Estado(EstadoPost, total=False):
     comentario_ig: str | None
     peca_blog_id: str
     url_pr: str
+    # Porta (FR-17): feedback de Jev para la próxima reescritura y la probabilidad que va a la pieza.
+    feedback_porta: str | None
+    probabilidade: float | None
+    # Los adaptadores reintentan con su propio contador: `tentativas` es el de la pieza madre (FR-6).
+    feedback_li: str | None
+    tentativas_li: int
+    feedback_ig: str | None
+    tentativas_ig: int
 
 
 def _texto(valor: Any) -> str:
@@ -50,6 +68,8 @@ def _texto(valor: Any) -> str:
         return valor
     if isinstance(valor, dict):
         valor = valor.values()
+    elif not isinstance(valor, list):
+        return ""  # p.ej. la probabilidad de la porta dentro de `conteudo`
     return "\n\n".join(t for t in (_texto(v) for v in valor) if t)
 
 
@@ -59,30 +79,70 @@ def _feedback(violacoes: list[Violacao]) -> str:
     )
 
 
-def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
+def _juntar(*feedbacks: str | None) -> str | None:
+    return "\n\n".join(f for f in feedbacks if f) or None
+
+
+def _com_probabilidade(conteudo: dict, probabilidade: float | None) -> dict:
+    return conteudo if probabilidade is None else {**conteudo, porta.CHAVE: probabilidade}
+
+
+def construir(
+    deps: Dependencias,
+    checkpointer: BaseCheckpointSaver | None,
+    *,
+    juiz: Juiz | None = None,
+    umbral: float = porta.UMBRAL_PADRAO,
+):
     repo = deps.repo
+
+    def suspeita(fonte: Fonte, post_id: str) -> bool:
+        if juiz is None:
+            return False
+        try:
+            return porta.fonte_suspeita(juiz, fonte, post_id=post_id) > 0.5
+        except JuizIndisponivel:
+            # Sin Jev, como en F4: la fuente pasa (la marca y la aprobación humana siguen ahí).
+            log.warning("Jev no disponible; fuente sin filtrar post_id=%s", post_id)
+            return False
+
+    def avaliar(texto: str, canal: Canal, post_id: str) -> tuple[float | None, str | None]:
+        """(probabilidad, feedback si queda bajo el umbral). `(None, None)` sin Jev."""
+        if juiz is None:
+            return None, None
+        exemplos = [_texto(p.conteudo) for p in repo.listar_pecas(status="publicada", canal=canal)][-N_EXEMPLOS:]
+        try:
+            av = porta.avaliar_peca(juiz, texto, canal, exemplos, post_id=post_id)
+        except JuizIndisponivel:
+            log.warning("Jev no disponible; pieza sin porta post_id=%s canal=%s", post_id, canal)
+            return None, None
+        return av.probabilidade, porta.feedback(av) if av.probabilidade < umbral else None
 
     def investigar(estado: _Estado) -> dict:
         post_id, tema = estado["post_id"], estado["tema"]
         repo.criar_post(
             Post(id=post_id, tema=tema, origem=estado["origem"], criado_em=datetime.now(UTC), estado="investigando")
         )
-        fontes = deps.investigar(tema, post_id=post_id)
+        # ponytail: una llamada a Jev por fuente; juntarlas en una si el costo por llamada importa.
+        fontes = [f for f in deps.investigar(tema, post_id=post_id) if not suspeita(f, post_id)]
         repo.salvar_fontes(post_id, fontes)
         repo.atualizar_post(post_id, estado="redigindo")
         return {"fontes": fontes}
 
     def redigir(estado: _Estado) -> dict:
         violacoes = estado["violacoes"]
-        feedback = _feedback(violacoes) if violacoes else None
+        feedback = _juntar(_feedback(violacoes) if violacoes else None, estado.get("feedback_porta"))
         texto = deps.redigir(estado["tema"], estado["fontes"], feedback, post_id=estado["post_id"])
-        return {"rascunho": {"es": texto}, "tentativas": estado["tentativas"] + (1 if violacoes else 0)}
+        return {"rascunho": {"es": texto}, "tentativas": estado["tentativas"] + (1 if feedback else 0)}
 
     def revisar(estado: _Estado) -> dict:
-        return {"violacoes": deps.revisar(_texto(estado["rascunho"]["es"]), estado["fontes"])}
+        texto = _texto(estado["rascunho"]["es"])
+        probabilidade, feedback = avaliar(texto, "blog", estado["post_id"])
+        violacoes = deps.revisar(texto, estado["fontes"])
+        return {"violacoes": violacoes, "probabilidade": probabilidade, "feedback_porta": feedback}
 
     def depois_de_revisar(estado: _Estado) -> str:
-        if estado["violacoes"] and estado["tentativas"] < MAX_TENTATIVAS:
+        if (estado["violacoes"] or estado.get("feedback_porta")) and estado["tentativas"] < MAX_TENTATIVAS:
             return "redigir"
         return "traduzir" if deps.traduzir and deps.abrir_pr else "adaptar_linkedin"
 
@@ -95,7 +155,7 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
             id=str(uuid.uuid4()),
             post_id=post_id,
             canal="blog",
-            conteudo=textos,
+            conteudo=_com_probabilidade(textos, estado.get("probabilidade")),
             violacoes=estado["violacoes"],
             status="pendente",
         )
@@ -127,28 +187,35 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
         return {"url_blog": url_blog}
 
     def adaptar_linkedin(estado: _Estado) -> dict:
+        feedback = _juntar(estado["comentario"], estado.get("feedback_li"))
         conteudo = deps.adaptar["linkedin"](
-            estado["rascunho"]["es"], estado["url_blog"], estado["comentario"], post_id=estado["post_id"]
+            estado["rascunho"]["es"], estado["url_blog"], feedback, post_id=estado["post_id"]
         )
         return {"derivados": {"linkedin": conteudo}}
 
-    def revisar_linkedin(estado: _Estado) -> dict:
+    def revisar_linkedin(estado: _Estado) -> Command:
         # Crea la pieza y notifica aquí, no en `aprovar`: al reanudar, `aprovar` se re-ejecuta desde el principio.
         post_id = estado["post_id"]
         conteudo = estado["derivados"]["linkedin"]
+        probabilidade, feedback = avaliar(_texto(conteudo), "linkedin", post_id)
+        tentativas = estado.get("tentativas_li", 0)
+        if feedback and tentativas < MAX_TENTATIVAS:
+            return Command(goto="adaptar_linkedin", update={"feedback_li": feedback, "tentativas_li": tentativas + 1})
         violacoes = deps.revisar(_texto(conteudo), estado["fontes"])
         peca = Peca(
             id=str(uuid.uuid4()),
             post_id=post_id,
             canal="linkedin",
-            conteudo=conteudo,
+            conteudo=_com_probabilidade(conteudo, probabilidade),
             violacoes=violacoes,
             status="pendente",
         )
         repo.criar_peca(peca)
         repo.atualizar_post(post_id, estado="aguardando_aprovacao")
         deps.notificar(peca)
-        return {"violacoes": violacoes, "peca_id": peca.id}
+        # Contador a 0: un "editar" de Héctor abre otra ronda de la porta.
+        update = {"violacoes": violacoes, "peca_id": peca.id, "feedback_li": None, "tentativas_li": 0}
+        return Command(goto="aprovar", update=update)
 
     # ponytail: los canales se deciden en serie (linkedin y luego instagram). En paralelo, una rama pausada impide
     # que el paso avance y "editar" en la otra nunca regenera la pieza. Para aprobarlas a la vez: un hilo por canal.
@@ -174,26 +241,33 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
         raise ValueError(f"decisao desconocida: {decisao!r}")
 
     def adaptar_carrossel(estado: _Estado) -> dict:
+        feedback = _juntar(estado["comentario_ig"], estado.get("feedback_ig"))
         conteudo = deps.adaptar["instagram"](
-            estado["rascunho"]["es"], estado["url_blog"], estado["comentario_ig"], post_id=estado["post_id"]
+            estado["rascunho"]["es"], estado["url_blog"], feedback, post_id=estado["post_id"]
         )
         return {"derivados": {"instagram": conteudo}}
 
-    def revisar_carrossel(estado: _Estado) -> dict:
+    def revisar_carrossel(estado: _Estado) -> Command:
         # Como `revisar_linkedin`; la marca se aplica al texto de todas las láminas (no al prompt de imagen).
         conteudo = estado["derivados"]["instagram"]
-        violacoes = deps.revisar(_texto(conteudo["laminas"]), estado["fontes"])
+        texto = _texto(conteudo["laminas"])
+        probabilidade, feedback = avaliar(texto, "instagram", estado["post_id"])
+        tentativas = estado.get("tentativas_ig", 0)
+        if feedback and tentativas < MAX_TENTATIVAS:
+            return Command(goto="adaptar_carrossel", update={"feedback_ig": feedback, "tentativas_ig": tentativas + 1})
+        violacoes = deps.revisar(texto, estado["fontes"])
         peca = Peca(
             id=str(uuid.uuid4()),
             post_id=estado["post_id"],
             canal="instagram",
-            conteudo=conteudo,
+            conteudo=_com_probabilidade(conteudo, probabilidade),
             violacoes=violacoes,
             status="pendente",
         )
         repo.criar_peca(peca)
         deps.notificar(peca)
-        return {"violacoes_ig": violacoes, "peca_ig_id": peca.id}
+        update = {"violacoes_ig": violacoes, "peca_ig_id": peca.id, "feedback_ig": None, "tentativas_ig": 0}
+        return Command(goto="aprovar_carrossel", update=update)
 
     def aprovar_carrossel(estado: _Estado) -> Command:
         resposta = interrupt({"peca_id": estado["peca_ig_id"], "violacoes": estado["violacoes_ig"]})
@@ -222,14 +296,13 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     g.add_node("pr_blog", pr_blog, destinations=("esperar_deploy", END))
     g.add_node("esperar_deploy", esperar_deploy)
     g.add_node("adaptar_linkedin", adaptar_linkedin)
-    g.add_node("revisar_linkedin", revisar_linkedin)
+    g.add_node("revisar_linkedin", revisar_linkedin, destinations=("adaptar_linkedin", "aprovar"))
     g.add_node("aprovar", aprovar, destinations=("adaptar_linkedin", seguinte))
     if "instagram" in deps.adaptar:
         g.add_node("adaptar_carrossel", adaptar_carrossel)
-        g.add_node("revisar_carrossel", revisar_carrossel)
+        g.add_node("revisar_carrossel", revisar_carrossel, destinations=("adaptar_carrossel", "aprovar_carrossel"))
         g.add_node("aprovar_carrossel", aprovar_carrossel, destinations=("adaptar_carrossel", END))
         g.add_edge("adaptar_carrossel", "revisar_carrossel")
-        g.add_edge("revisar_carrossel", "aprovar_carrossel")
     g.add_edge(START, "investigar")
     g.add_edge("investigar", "redigir")
     g.add_edge("redigir", "revisar")
@@ -237,7 +310,6 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     g.add_edge("traduzir", "pr_blog")
     g.add_edge("esperar_deploy", "adaptar_linkedin")
     g.add_edge("adaptar_linkedin", "revisar_linkedin")
-    g.add_edge("revisar_linkedin", "aprovar")
     return g.compile(checkpointer=checkpointer)
 
 
