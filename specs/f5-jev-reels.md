@@ -42,7 +42,7 @@ configuración no contiene la clave.
 - **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Integración de SDK nuevo con docs vivas; requiere leer bien el contrato.
-- **Dependencies**: F4.5.T1
+- **Dependencies**: F4.1.T1
 - **Files**:
   - `src/prelo/juizo.py`
   - `src/prelo/config.py`
@@ -121,7 +121,7 @@ sugerencias como antes; cada sugerencia mantiene su `link` de origen.
 - **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 2h
 - **Reason**: Composición de puntuaciones en código; acotado.
-- **Dependencies**: F5.1.T1
+- **Dependencies**: F4.3.T1, F5.1.T1
 - **Files**:
   - `src/prelo/sugestoes.py`
   - `tests/test_sugestoes.py`
@@ -146,7 +146,7 @@ entre 15 y 60 s; un texto con `<script>` sale escapado; la llamada a render usa 
 - **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 4h
 - **Reason**: Framework de video nuevo más publicación; requiere leer su contrato.
-- **Dependencies**: F4.5.T1
+- **Dependencies**: F3.5.T1
 - **Files**:
   - `templates/video/`
   - `src/prelo/video.py`
