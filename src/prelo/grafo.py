@@ -278,8 +278,12 @@ def retomar(
     resume: Any = {"decisao": decisao, "comentario": comentario, "url_blog": url_blog}
     config = _config(post_id)
     if peca_id:
+        # Todas las pausas del grafo llevan un dict; `peca_id` solo está en las de aprobación (aprovar*, pr_blog).
         pendentes = [
-            i for t in grafo.get_state(config).tasks for i in t.interrupts if i.value.get("peca_id") == peca_id
+            i
+            for t in grafo.get_state(config).tasks
+            for i in t.interrupts
+            if isinstance(i.value, dict) and i.value.get("peca_id") == peca_id
         ]
         if not pendentes:
             raise ValueError(f"la pieza {peca_id} no espera una decisión")
