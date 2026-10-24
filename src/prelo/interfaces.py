@@ -262,8 +262,8 @@ class Repositorio(Protocol):
 class Dependencias:
     """Dobles de los servicios que usa el grafo.
 
-    En F2 este dataclass crecera con `traduzir` y `abrir_pr`; en F3 el dict
-    `adaptar` tendra tambien la clave `instagram`.
+    `traduzir` y `abrir_pr` llegan en F2: sin ellos el grafo va directo a los
+    derivados, como en F1. En F3 el dict `adaptar` tendra tambien la clave `instagram`.
     """
 
     # (tema, *, post_id) -> list[Fonte]
@@ -277,6 +277,10 @@ class Dependencias:
     # (peca) -> None; avisa en Slack que una pieza espera aprobacion
     notificar: Callable[[Peca], None]
     repo: Repositorio
+    # (texto, *, post_id) -> dict[str, Texto] con "es" | "pt" | "en"
+    traduzir: Callable[..., dict[str, Texto]] | None = None
+    # (post_id, textos) -> URL del PR en site-guria
+    abrir_pr: Callable[[str, dict[str, Texto]], str] | None = None
 
 
 __all__ = [
