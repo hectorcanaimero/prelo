@@ -48,3 +48,11 @@ def test_ningun_secreto_en_tf():
     for f in TF_FILES:
         for p in patrones:
             assert not re.search(p, f.read_text()), f"{f.name}: {p}"
+
+
+def test_user_data_espera_el_volumen_ebs_antes_de_formatearlo():
+    # aws_volume_attachment llega después del primer arranque: sin espera, mkfs.ext4 recibe un dispositivo vacío.
+    script = (TF_DIR / "user_data.sh.tftpl").read_text()
+    espera = script.index("for _ in $(seq")
+    assert espera < script.index("mkfs.ext4")
+    assert '[ -n "$DEV" ] || {' in script

@@ -10,8 +10,15 @@ systemctl enable --now docker
 
 # Volumen EBS de Postgres: el primer disco sin particiones ni montajes que no sea el raíz.
 # (/dev/sdf aparece como /dev/nvme1n1 en instancias Nitro.)
+# aws_volume_attachment se aplica después de crear la instancia: el disco puede no estar todavía al primer arranque.
 ROOT=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)")
-DEV=$(lsblk -dpno NAME,TYPE | awk '$2=="disk"{print $1}' | grep -v "$ROOT" | head -n1)
+DEV=""
+for _ in $(seq 1 60); do
+  DEV=$(lsblk -dpno NAME,TYPE | awk '$2=="disk"{print $1}' | grep -v "$ROOT" | head -n1 || true)
+  [ -n "$DEV" ] && break
+  sleep 5
+done
+[ -n "$DEV" ] || { echo "prelo: el volumen EBS de Postgres no apareció en 5 minutos" >&2; exit 1; }
 if ! blkid "$DEV" >/dev/null 2>&1; then mkfs.ext4 "$DEV"; fi
 mkdir -p /data/postgres
 grep -q /data/postgres /etc/fstab || echo "UUID=$(blkid -s UUID -o value "$DEV") /data/postgres ext4 defaults,nofail 0 2" >> /etc/fstab
