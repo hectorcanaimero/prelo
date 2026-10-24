@@ -84,6 +84,13 @@ def test_registra_costo_con_agente_juizo():
     assert isinstance(c.usd, Decimal) and isinstance(c.criado_em, datetime)
 
 
+def test_sin_post_id_no_registra_costo_pero_devuelve_respuestas():
+    j, repo = _juiz(FakeClient(_resp()))
+    r = j.avaliar({}, {"gancho": object()})
+    assert r.noul("gancho") == 0.8
+    assert repo.custos == []
+
+
 def test_repr_de_la_configuracion_no_contiene_la_clave():
     s = Settings(TYPESAFE_API_KEY=KEY)
     assert s.TYPESAFE_API_KEY.get_secret_value() == KEY
