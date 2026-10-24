@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__orch",
+      "Bash(scripts/task-finish.sh:*)",
+      "Bash(scripts/task-block.sh:*)"
+    ]
+  }
+}

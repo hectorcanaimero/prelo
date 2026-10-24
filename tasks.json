@@ -1,0 +1,677 @@
+{
+  "meta": {
+    "default_cheap_model": "claude/claude-haiku-4-5",
+    "default_premium_model": "claude/claude-opus-4-7",
+    "default_standard_model": "claude/claude-sonnet-4-6",
+    "project": "prelo",
+    "generatedAt": "2026-10-23",
+    "note": "Skeleton created by `orch init`. Add tasks by editing this file directly OR by writing specs under specs/ and running `orch atomize --file specs/YOUR-SPEC.md --apply`."
+  },
+  "phases": [
+    {
+      "id": 0,
+      "name": "F0 — Foundation"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "F0.T1",
+      "phase": 0,
+      "title": "Add a Getting started section to README.md",
+      "description": "Add a short \"Getting started\" section to README.md (create the file if it does not exist): what this project is, how to install what it needs and how to run it, from what the repository holds today. Change nothing else. This is orch's sample task: it shows an agent at work before you plan your own.",
+      "model": "claude/claude-haiku-4-5",
+      "reason": "A small, safe first task on the cheapest model of a CLI you have installed.",
+      "status": "todo",
+      "dependencies": [],
+      "estimateHours": 0.1,
+      "files": [
+        "README.md"
+      ],
+      "specRef": "",
+      "comments": []
+    },
+    {
+      "id": "F1.1.T1",
+      "phase": 1,
+      "title": "Proyecto uv, compose, config y CI",
+      "description": "Crea el esqueleto del proyecto según la sección *Components → config* e *infra* de docs/arch/001-prelo.md.\n\n- `pyproject.toml` con `uv` (Python 3.12) y las dependencias de F1: `langgraph`, `langgraph-checkpoint-postgres`,\n  `psycopg[binary,pool]`, `anthropic`, `langfuse`, `slack-bolt`, `fastapi`, `uvicorn`, `tavily-python`,\n  `pydantic-settings`, `httpx`; de desarrollo `pytest`, `respx`, `ruff`. Genera `uv.lock`.\n- `src/prelo/__init__.py`, y paquetes vacíos `src/prelo/agentes/__init__.py` y `src/prelo/publicadores/__init__.py`\n  para que las tareas paralelas no se pisen.\n- `src/prelo/config.py`: una clase `Settings` (pydantic-settings) con todas las variables de *Interfaces → Variables\n  de entorno*; `PRELO_BLOQUEIA` se expone como `list[str]` (separada por comas, sin espacios sobrantes, vacía si no\n  existe). Los tokens son `SecretStr` para que nunca salgan en un `repr` ni en un log (NFR-3).\n- `.env.example` con todas las variables y sin valores.\n- `docker-compose.yml` con `postgres` y Langfuse self-hosted (con sus dependencias) y un servicio `prelo` que usa el\n  `Dockerfile`; `docker compose up` debe levantar todo (NFR-6).\n- `Dockerfile` multi-stage con `uv`.\n- `.github/workflows/ci.yml`: `ruff check`, `pytest` con un servicio Postgres y `TEST_DATABASE_URL` apuntándolo.\n\nDone when: these tests pass in `tests/test_config.py` — `PRELO_BLOQUEIA=\"Acme, Foo ,\"` produce `[\"Acme\", \"Foo\"]`;\nsin `PRELO_BLOQUEIA` la lista es vacía; el `repr` de `Settings` no contiene el valor de `SLACK_BOT_TOKEN`. Además\n`uv run ruff check` pasa y `docker compose config` valida el compose.",
+      "model": "agy/gemini-3.1-pro-high",
+      "reason": "Scaffolding con Langfuse v3 en compose tiene piezas no triviales; standard basta.",
+      "status": "backlog",
+      "dependencies": [],
+      "estimateHours": 3.0,
+      "files": [
+        "pyproject.toml",
+        "uv.lock",
+        "docker-compose.yml",
+        "Dockerfile",
+        ".env.example",
+        "src/prelo/__init__.py",
+        "src/prelo/agentes/__init__.py",
+        "src/prelo/publicadores/__init__.py",
+        "src/prelo/config.py",
+        "tests/test_config.py",
+        ".github/workflows/ci.yml"
+      ],
+      "specRef": "f1-linkedin.md#F1.1.T1",
+      "comments": []
+    },
+    {
+      "id": "F1.1.T2",
+      "phase": 1,
+      "title": "Base de datos: migración inicial y repositorio",
+      "description": "Implementa *db* según *Data model* de docs/arch/001-prelo.md: conexión a Postgres con `psycopg`, un aplicador de\nmigraciones SQL numeradas (`src/prelo/db/migracoes/NNN_*.sql`, registra las aplicadas en una tabla propia y es\nidempotente) y `001_inicial.sql` con las tablas `posts`, `fontes`, `pecas`, `publicacoes` y `custos`. La tabla\n`metricas` NO va aquí: llega en F4.1.\n\nExpón un `Repositorio` (`src/prelo/db/repositorio.py`) con dataclasses `Post`, `Fonte`, `Peca`, `Publicacao`, `Custo`\ny los métodos que usan los demás componentes: crear y leer posts, guardar fuentes, crear/actualizar piezas\n(`status`, `decisao`, `comentario`, `agendada_para`), listar piezas por `status` y canal, registrar publicaciones y\ncostos, y sumar costos por post y agente. `Peca` y `Publicacao` son las dataclasses que cita el `Publicador` de\n*Interfaces*.\n\n`tests/conftest.py` define la fixture `pg_url`: lee `TEST_DATABASE_URL`, salta el test si no existe, crea un schema\nlimpio por test y aplica las migraciones.\n\nDone when: these tests pass in `tests/test_db.py` — aplicar las migraciones dos veces no falla ni duplica nada; un\npost con dos fuentes se lee con sus dos fuentes; cambiar el `status` de una pieza a `aprovada` y listar por ese\n`status` la devuelve; la suma de costos de un post agrupa por agente y da el total correcto.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "SQL y repositorio sin decisiones de diseño abiertas.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/db/__init__.py",
+        "src/prelo/db/conexao.py",
+        "src/prelo/db/migrar.py",
+        "src/prelo/db/migracoes/001_inicial.sql",
+        "src/prelo/db/repositorio.py",
+        "tests/conftest.py",
+        "tests/test_db.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.1.T2",
+      "comments": []
+    },
+    {
+      "id": "F1.1.T3",
+      "phase": 1,
+      "title": "Interfaces, estado y grafo con dobles",
+      "description": "Escribe `src/prelo/interfaces.py` y `src/prelo/estado.py` exactamente como los fija *Interfaces* de\ndocs/arch/001-prelo.md (`Fonte`, `Violacao`, `Texto`, `EstadoPost`, `Modelo`, `Buscador`, `Publicador`,\n`Dependencias`, y `Regras` como tipo opaco que define marca). Después, `src/prelo/grafo.py` con\n`construir(deps, checkpointer)`, `iniciar(grafo, tema, origem) -\u003e post_id` y `retomar(grafo, post_id, decisao,\ncomentario=None)`.\n\nEl flujo de F1 (sección *grafo*): `investigar → redigir → revisar`; si hay violaciones y `tentativas \u003c 2`, vuelve a\n`redigir` con el feedback; luego `adaptar_linkedin → revisar → aprovar` (`interrupt()`, con `deps.notificar` antes de\npausar) `→ agendar → END`. \"editar\" vuelve al adaptador con el comentario; \"descartar\" marca la pieza `descartada` y\nva a `END`. `agendar` solo pone la pieza en `aprovada` con `decisao = aprovado`: publicar es trabajo de la agenda\n(D9). `thread_id = post_id`. El grafo escribe en `posts`, `fontes` y `pecas` vía `deps.repo` y no importa ningún\ncliente externo.\n\nDone when: these tests pass in `tests/test_grafo.py`, usando dobles para todas las funciones de `Dependencias` —\nun tema sin violaciones llega a `aprovar` y queda pausado con la pieza `pendente`; `retomar(..., \"aprovado\")` deja la\npieza `aprovada` con `decisao = aprovado`; un borrador que siempre viola se reescribe exactamente 2 veces y llega a\n`aprovar` con `violacoes` no vacías; \"editar\" llama al adaptador con el comentario y vuelve a pausar; \"descartar\"\ndeja la pieza `descartada` y no se aprueba nada; con `PostgresSaver` (fixture `pg_url`), construir un grafo nuevo\ntras la pausa y aprobar con él aprueba exactamente el texto que se pausó (FR-8).",
+      "model": "claude/claude-opus-4-7",
+      "reason": "Fija los contratos de todo el proyecto y el flujo con interrupt/checkpointer; diseño crítico.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T2"
+      ],
+      "estimateHours": 5.0,
+      "files": [
+        "src/prelo/interfaces.py",
+        "src/prelo/estado.py",
+        "src/prelo/grafo.py",
+        "tests/test_grafo.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.1.T3",
+      "comments": []
+    },
+    {
+      "id": "F1.2.T1",
+      "phase": 1,
+      "title": "Revisión de marca determinista",
+      "description": "Implementa `revisar(texto, fontes, regras) -\u003e list[Violacao]` en `src/prelo/marca.py` según *marca* y D3/D11 de\ndocs/arch/001-prelo.md, y `carregar_regras(settings) -\u003e Regras`, que junta `marca.toml` (frases de \"cara de IA\" y\npatrones de cifras y fechas) con `settings.PRELO_BLOQUEIA`. Ningún empleador ni cliente real va en el repo (NFR-5):\nlos tests usan nombres inventados.\n\nReglas: `empregador` si aparece un nombre de la lista (sin distinguir mayúsculas ni acentos, como palabra completa);\n`frase_ia` si aparece una frase de la lista de `marca.toml`; `cifra_sem_fonte` si una cifra o fecha del texto no\naparece en ningún `trecho` de las `fontes` (FR-4). Cada `Violacao` lleva el `trecho` exacto que la causó.\n\nDone when: these tests pass in `tests/test_marca.py` — \"trabajé en ACME\" con `ACME` en la lista da una violación\n`empregador`; \"Acmé\" también la da; \"acmeísmo\" no; una frase de la lista de `marca.toml` da `frase_ia`; \"creció un\n40%\" sin fuente que contenga \"40%\" da `cifra_sem_fonte` y con ella no; \"en 2024\" se trata igual que una cifra; un\ntexto limpio devuelve lista vacía; `carregar_regras` con `PRELO_BLOQUEIA` vacío no bloquea ningún nombre.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Lógica determinista con casos borde de normalización; standard con buenos tests.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T3"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/marca.py",
+        "marca.toml",
+        "tests/test_marca.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.2.T1",
+      "comments": []
+    },
+    {
+      "id": "F1.3.T1",
+      "phase": 1,
+      "title": "Modelo real, costos y Langfuse",
+      "description": "Implementa el `Modelo` de *Interfaces* en `src/prelo/modelo.py` sobre el SDK de Anthropic, y `src/prelo/custos.py`.\nCada llamada a `gerar(prompt, agente=, post_id=)` elige el modelo por agente según D4 (fuerte para `redator`, barato\npara el resto; tabla configurable en el módulo), registra tokens de entrada/salida y USD en `custos` vía el\n`Repositorio` y manda la traza a Langfuse etiquetada con `post_id` y `agente` (FR-16). Las trazas y los logs nunca\nincluyen tokens ni API keys (NFR-3). El cliente de Anthropic y el de Langfuse se inyectan en el constructor.\n\nDone when: these tests pass in `tests/test_custos.py`, con clientes falsos — una llamada de `redator` usa el modelo\nfuerte y una de `adaptador_linkedin` el barato; tras una llamada hay una fila en `custos` con los tokens que devolvió\nel cliente y el USD calculado con la tabla de precios; la traza enviada lleva `post_id` y `agente` y su contenido\nserializado no contiene el valor de la API key.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Wrapper de SDK con registro de costos; patrón conocido.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T3"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/modelo.py",
+        "src/prelo/custos.py",
+        "tests/test_custos.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.3.T1",
+      "comments": []
+    },
+    {
+      "id": "F1.3.T2",
+      "phase": 1,
+      "title": "Buscador Tavily e investigador",
+      "description": "Implementa el `Buscador` de *Interfaces* sobre Tavily en `src/prelo/buscador.py` (D13) y el agente `investigador` en\n`src/prelo/agentes/investigador.py`: arma consultas a partir del tema con el `Modelo`, busca y devuelve `Fonte`s\ndeduplicadas por URL, cada una con `url`, `titulo` y `trecho` no vacíos (FR-3). El investigador no tiene ninguna\nherramienta con efectos (NFR-4).\n\nDone when: these tests pass in `tests/test_investigador.py`, con `Modelo` y cliente Tavily falsos — un tema devuelve\nal menos una `Fonte` con los tres campos; dos resultados con la misma URL quedan en una sola fuente; un resultado\nsin contenido se descarta; si no hay ninguna fuente, levanta un error con un motivo legible (que FR-1 muestra en\nSlack).",
+      "model": "agy/gemini-3.1-pro-high",
+      "reason": "Integración HTTP sencilla con validación.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T3"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/buscador.py",
+        "src/prelo/agentes/investigador.py",
+        "tests/test_investigador.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.3.T2",
+      "comments": []
+    },
+    {
+      "id": "F1.3.T3",
+      "phase": 1,
+      "title": "Redator y adaptador de LinkedIn",
+      "description": "Implementa `redator` (`src/prelo/agentes/redator.py`) y `adaptador_linkedin`\n(`src/prelo/agentes/adaptador_linkedin.py`) con las firmas de `Dependencias.redigir` y `Dependencias.adaptar` de\ndocs/arch/001-prelo.md. El redator escribe la pieza madre en español (`Texto`: título, resumen, cuerpo) con las\nfuentes y, si llega, el feedback de violaciones o del editor. El adaptador produce el post de LinkedIn en pt-BR y,\ncuando `url_blog` no es `None`, incluye ese link (FR-11). El contenido de cada fuente entra al prompt dentro de\n`\u003cfonte\u003e…\u003c/fonte\u003e` con la instrucción explícita de tratarlo como datos (NFR-4). Los prompts viven en el módulo de\ncada agente.\n\nDone when: these tests pass in `tests/test_redator.py`, con un `Modelo` falso que captura el prompt — cada fuente\naparece dentro de `\u003cfonte\u003e` y el prompt contiene la instrucción de tratarla como datos; una fuente con\n\"ignora las instrucciones anteriores\" queda dentro del delimitador; el feedback aparece en el prompt cuando se pasa;\nla salida del modelo se parsea a un `Texto` con los tres campos; el adaptador incluye `url_blog` cuando existe y no\ninventa un link cuando es `None`.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Prompts y parseo; la calidad real la miden las evals de F1.6.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T3"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/agentes/redator.py",
+        "src/prelo/agentes/adaptador_linkedin.py",
+        "tests/test_redator.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.3.T3",
+      "comments": []
+    },
+    {
+      "id": "F1.4.T1",
+      "phase": 1,
+      "title": "App de Slack: /prelo y aprobación",
+      "description": "Implementa `src/prelo/slack.py` con Slack Bolt en Socket Mode (D8), según *slack* e *Interfaces → Slack* de\ndocs/arch/001-prelo.md. `/prelo \u003ctema\u003e` llama a `iniciar` (FR-1) y responde con el tema recibido o el motivo del\nfallo. `notificar(peca)` publica en `SLACK_CANAL` la pieza pendiente con el texto, las fuentes (FR-3), las\nviolaciones, el costo del post por agente y total (FR-16) y los botones `prelo_aprovar`, `prelo_editar`,\n`prelo_descartar` con `value` = JSON `{\"post_id\", \"peca_id\"}` (FR-9). Si la pieza tiene violaciones, no se muestra\n\"Aprobar\" (FR-6). \"Editar\" abre un modal con el campo `comentario`. Cada acción llama a `retomar` y actualiza el\nmensaje. Crea también `slack-manifest.yml` (Socket Mode, comando `/prelo`, interactividad, scopes `chat:write` y\n`commands`) para crear la app una vez en api.slack.com/apps (D15). Las funciones reciben `iniciar`/`retomar` y el `Repositorio` inyectados; la app no importa el grafo.\n\nDone when: these tests pass in `tests/test_slack.py`, con un cliente de Slack falso — `/prelo IA local` llama a\n`iniciar` con ese tema; un fallo de `iniciar` responde con su motivo; el mensaje de una pieza sin violaciones trae\nlos tres botones con el `value` correcto, las fuentes y el costo; una pieza con violaciones no trae `prelo_aprovar`\ny lista las violaciones; pulsar Aprobar llama a `retomar(post_id, \"aprovado\")`; enviar el modal de Editar llama a\n`retomar(post_id, \"editar\", comentario)`; Descartar llama a `retomar(post_id, \"descartar\")`.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Integración Bolt con bloques y modales; varios caminos pero sin diseño nuevo.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T3"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "src/prelo/slack.py",
+        "slack-manifest.yml",
+        "tests/test_slack.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.4.T1",
+      "comments": []
+    },
+    {
+      "id": "F1.5.T1",
+      "phase": 1,
+      "title": "Worker de agenda",
+      "description": "Implementa `src/prelo/agenda.py` según *agenda* y D9 de docs/arch/001-prelo.md. Una función pura\n`proximo_hueco(canal, ocupados, agora) -\u003e datetime` calcula el siguiente hueco de martes a jueves con máximo una\npieza por día y canal (FR-13), con la hora de publicación configurable y zona horaria `America/Sao_Paulo`. `tick()`\n(lo que corre cada minuto) toma las piezas `aprovada`, les asigna hueco, las pasa a `agendada` y avisa en Slack la\nfecha; cuando llega la hora, vuelve a comprobar `decisao = aprovado` (FR-7), llama al `Publicador` del canal,\nregistra la `Publicacao` (FR-14) y pasa la pieza a `publicada`. Si el publicador falla, la pieza vuelve a\n`aprovada` y se avisa en Slack. Avisa también 7 días antes de que caduque el token de LinkedIn (riesgo del ARCH).\nRecibe publicadores, repositorio, aviso y reloj inyectados.\n\nDone when: these tests pass in `tests/test_agenda.py` — aprobada un lunes se agenda el martes; aprobada un jueves\ndespués de la hora se agenda el martes siguiente; con el martes ocupado en ese canal va al miércoles, pero otro canal\nsí puede usar el martes; una pieza agendada cuya `decisao` no es `aprovado` no se publica; al llegar la hora se\nllama al publicador y queda una `Publicacao` con canal, URL y fecha; un fallo del publicador deja la pieza\n`aprovada` y genera un aviso; a 7 días de caducar el token se genera un aviso.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Lógica de fechas con muchos bordes y una regla de seguridad (FR-7).",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T3"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "src/prelo/agenda.py",
+        "tests/test_agenda.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.5.T1",
+      "comments": []
+    },
+    {
+      "id": "F1.5.T2",
+      "phase": 1,
+      "title": "Publicador de LinkedIn",
+      "description": "Implementa `src/prelo/publicadores/linkedin.py`: un `Publicador` con `canal = \"linkedin\"` que publica el texto de la\npieza en el perfil de Héctor con la API de LinkedIn (Posts API, `LINKEDIN_TOKEN` desde `config`) usando `httpx`, y\ndevuelve una `Publicacao` con la URL y el `id_externo`. No decide nada: publica lo que recibe. Un error de la API\nlevanta una excepción con el código y el mensaje, sin el token.\n\nDone when: these tests pass in `tests/test_linkedin.py`, con `respx` — una publicación correcta manda el texto y el\nautor esperados y devuelve una `Publicacao` con URL e `id_externo`; un 401 levanta un error que no contiene el token;\nla cabecera de autorización lleva el token pero ningún log lo muestra.",
+      "model": "agy/gemini-3.1-pro-high",
+      "reason": "Cliente HTTP acotado.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.1.T3"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/publicadores/linkedin.py",
+        "tests/test_linkedin.py"
+      ],
+      "specRef": "f1-linkedin.md#F1.5.T2",
+      "comments": []
+    },
+    {
+      "id": "F1.6.T1",
+      "phase": 1,
+      "title": "Evals de estilo, fidelidad y marca en CI",
+      "description": "Crea `evals/` según *evals* y NFR-2 de docs/arch/001-prelo.md: un runner (`evals/run.py`) que descubre cada\nsubdirectorio de `evals/` como un conjunto de casos fijos (tema + fuentes + salida esperada o criterios), ejecuta el\nagente correspondiente y calcula métricas con umbral: fidelidad a las fuentes (LLM juez barato), estilo (LLM juez con\nrúbrica) y violaciones de marca (`revisar`, umbral 0). El runner sale con código distinto de 0 si una métrica queda\nbajo su umbral. Incluye al menos 5 casos para `redator` + `adaptador_linkedin`. `.github/workflows/evals.yml` lo\ncorre en cada PR con los secretos del repo. El runner deja el costo de la corrida en la salida.\n\nDone when: these tests pass in `evals/test_runner.py`, con agentes y juez falsos — una métrica sobre el umbral sale\ncon código 0; una bajo el umbral sale con código 1 y nombra la métrica; una violación de marca en cualquier caso hace\nfallar la corrida; el runner descubre un subdirectorio nuevo sin tocar su código.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Diseño de métricas y juez; standard con criterio.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.2.T1",
+        "F1.3.T1",
+        "F1.3.T3"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "evals/run.py",
+        "evals/test_runner.py",
+        "evals/linkedin/",
+        ".github/workflows/evals.yml"
+      ],
+      "specRef": "f1-linkedin.md#F1.6.T1",
+      "comments": []
+    },
+    {
+      "id": "F1.7.T1",
+      "phase": 1,
+      "title": "app.py, API de salud y README",
+      "description": "Conecta todo según *Components* de docs/arch/001-prelo.md. `src/prelo/app.py` lee `Settings`, aplica las\nmigraciones, construye los clientes reales, arma las `Dependencias` (investigador, redator, adaptador LinkedIn,\n`revisar` con `carregar_regras`, `notificar` de Slack, repositorio), construye el grafo con `PostgresSaver` y arranca\nen un solo proceso la API, la app de Slack y el worker de agenda (cada minuto). `src/prelo/api.py` es FastAPI con\n`GET /saude` (200 si la base responde) y `POST /posts` para Hermes según *Interfaces → API para Hermes* y D15\n(`{\"tema\"}` + `Bearer PRELO_API_TOKEN` → `202 {\"post_id\"}`; comparación del token en tiempo constante). No existe\nningún endpoint que apruebe. Reemplaza `README.md` por uno que explique qué es Prelo, el diagrama del\ngrafo, cómo levantarlo con `docker compose up`, cómo crear la app de Slack desde `slack-manifest.yml`, cómo apuntar Hermes a\n`POST /posts` y qué variables hacen falta.\n\nDone when: these tests pass in `tests/test_app.py` — `GET /saude` responde 200 con la base disponible y 503 sin\nella; `POST /posts` con el token correcto llama a `iniciar` y responde 202 con el `post_id`; sin token o con\nuno incorrecto responde 401 y no llama a `iniciar`; un tema vacío responde 422; `montar_dependencias(settings, clientes_falsos)` devuelve unas `Dependencias` con todas sus claves y el\nadaptador `linkedin`; con dobles, un `/prelo` simulado termina en una pieza pendiente notificada en Slack.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Cableado de piezas ya probadas más un endpoint autenticado.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.2.T1",
+        "F1.3.T1",
+        "F1.3.T2",
+        "F1.3.T3",
+        "F1.4.T1",
+        "F1.5.T1",
+        "F1.5.T2"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "src/prelo/app.py",
+        "src/prelo/api.py",
+        "tests/test_app.py",
+        "README.md"
+      ],
+      "specRef": "f1-linkedin.md#F1.7.T1",
+      "comments": []
+    },
+    {
+      "id": "F2.1.T1",
+      "phase": 2,
+      "title": "Nodos traduzir, pr_blog y esperar_deploy con dobles",
+      "description": "Extiende el grafo según *grafo* de docs/arch/001-prelo.md: tras `revisar` ok van `traduzir → pr_blog` (abre el PR y\nhace `interrupt()` hasta el merge) `→ esperar_deploy` (otro `interrupt()` hasta que `deploy_blog` reanude con la URL\npública) y solo entonces los derivados, con `url_blog` en el estado. Añade a `Dependencias` `traduzir(texto, *,\npost_id) -\u003e dict[str, Texto]` y `abrir_pr(post_id, textos) -\u003e str` (URL del PR), como fija *Interfaces*. Crea la\npieza de canal `blog` en `pecas`; el merge del PR registra `decisao = aprovado` para esa pieza (FR-7). Si el PR se\ncierra sin merge, el post termina sin derivados. Mantén verdes los tests de F1 adaptando sus dobles.\n\nDone when: these tests pass in `tests/test_grafo_blog.py`, con dobles — un tema sin violaciones llama a `traduzir`\ny a `abrir_pr` y queda pausado en `pr_blog`; reanudar con merge pausa en `esperar_deploy`; reanudar con la URL\nllama al adaptador de LinkedIn con esa `url_blog`; la pieza `blog` queda con `decisao = aprovado` tras el merge;\nun PR cerrado sin merge termina el post sin llamar al adaptador; y `tests/test_grafo.py` sigue pasando.",
+      "model": "claude/claude-opus-4-7",
+      "reason": "Cambia el flujo central con dos interrupts nuevos; diseño crítico.",
+      "status": "backlog",
+      "dependencies": [
+        "F1.7.T1"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "src/prelo/grafo.py",
+        "src/prelo/estado.py",
+        "src/prelo/interfaces.py",
+        "tests/test_grafo.py",
+        "tests/test_grafo_blog.py"
+      ],
+      "specRef": "f2-blog.md#F2.1.T1",
+      "comments": []
+    },
+    {
+      "id": "F2.2.T1",
+      "phase": 2,
+      "title": "Agente tradutor",
+      "description": "Implementa `src/prelo/agentes/tradutor.py` con la firma de `Dependencias.traduzir`: a partir del `Texto` en español\nproduce `pt` y `en` con título, resumen y cuerpo, usando el modelo barato (D4) vía `Modelo`. Mantiene intactos los\nbloques de código, los links y las cifras del original (las cifras ya fueron validadas por la marca).\n\nDone when: these tests pass in `tests/test_tradutor.py`, con un `Modelo` falso — devuelve las claves `es`, `pt` y\n`en` y cada una tiene los tres campos; un bloque de código del original aparece idéntico en las traducciones; si el\nmodelo devuelve una traducción sin cuerpo, levanta un error legible; el agente usado al llamar al modelo es\n`tradutor`.",
+      "model": "agy/gemini-3.1-pro-high",
+      "reason": "Prompt y parseo; la calidad la miden las evals de F2.5.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.1.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/agentes/tradutor.py",
+        "tests/test_tradutor.py"
+      ],
+      "specRef": "f2-blog.md#F2.2.T1",
+      "comments": []
+    },
+    {
+      "id": "F2.2.T2",
+      "phase": 2,
+      "title": "mdx.py con test de contrato contra site-guria",
+      "description": "Lee el schema de la colección `blog` de `site-guria` (`src/content/config.ts` o equivalente, en\ngithub.com/hectorcanaimero/site-guria; usa `gh` con `GITHUB_TOKEN`) y fija en `src/prelo/mdx.py` las rutas por\nidioma y el frontmatter exacto (NFR-8). `gerar_mdx(post_id, textos, data) -\u003e dict[str, str]` devuelve ruta →\ncontenido para los tres idiomas. Guarda una copia del schema leído en `tests/fixtures/site_guria_blog_schema.ts` y\nescribe un test de contrato que compara los campos del frontmatter con ese schema, para que un cambio del sitio\nrompa el test (riesgo del ARCH).\n\nDone when: these tests pass in `tests/test_mdx.py` — se generan tres archivos, uno por idioma, en las rutas fijadas;\ncada frontmatter tiene todos los campos obligatorios del schema y ninguno desconocido; un título con comillas y dos\npuntos produce YAML válido; el slug es el mismo en los tres idiomas; el cuerpo sale tal cual.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Hay que leer un repo externo y fijar un contrato; requiere criterio.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.1.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/mdx.py",
+        "tests/fixtures/site_guria_blog_schema.ts",
+        "tests/test_mdx.py"
+      ],
+      "specRef": "f2-blog.md#F2.2.T2",
+      "comments": []
+    },
+    {
+      "id": "F2.3.T1",
+      "phase": 2,
+      "title": "Publicador de GitHub: rama y PR",
+      "description": "Implementa `src/prelo/publicadores/github.py` con la API de GitHub vía `httpx` y la función `abrir_pr(post_id,\ntextos)` de `Dependencias`: crea la rama `prelo/\u003cpost_id\u003e` en `site-guria`, sube los tres MDX de `mdx.gerar_mdx` en\nun commit y abre el PR con el título del post y el link a las fuentes en la descripción. Devuelve la URL del PR. Si la\nrama ya existe, actualiza el PR en vez de duplicarlo. Ningún error ni log contiene `GITHUB_TOKEN`.\n\nDone when: these tests pass in `tests/test_github.py`, con `respx` — se crea la rama `prelo/\u003cpost_id\u003e` desde la rama\npor defecto; el commit contiene los tres archivos con su contenido; el PR se abre contra la rama por defecto y la\nfunción devuelve su URL; con la rama ya existente no se abre un segundo PR; un 403 levanta un error sin el token.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Cliente de la API de Git data con varios pasos.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.2.T2"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/publicadores/github.py",
+        "tests/test_github.py"
+      ],
+      "specRef": "f2-blog.md#F2.3.T1",
+      "comments": []
+    },
+    {
+      "id": "F2.3.T2",
+      "phase": 2,
+      "title": "Webhook de GitHub",
+      "description": "Implementa `src/prelo/webhooks.py`: un `APIRouter` de FastAPI con `POST /webhooks/github` que verifica la firma\n`X-Hub-Signature-256` con `GITHUB_WEBHOOK_SECRET` (comparación en tiempo constante) y, para eventos `pull_request`\ncon `action = closed`, rama `prelo/\u003cpost_id\u003e` y `merged = true`, llama a `retomar(post_id, \"aprovado\")`; con\n`merged = false`, a `retomar(post_id, \"descartar\")` (ver *Interfaces → GitHub*). Otros eventos responden 204 sin\nefecto. Recibe `retomar` inyectado; `api.py` lo monta en F2.5.\n\nDone when: these tests pass in `tests/test_webhooks.py` — una firma inválida responde 401 y no llama a `retomar`; un\nPR mergeado de `prelo/abc` llama a `retomar(\"abc\", \"aprovado\")`; un PR cerrado sin merge llama a\n`retomar(\"abc\", \"descartar\")`; un PR de otra rama o un evento `push` responde 204 sin efecto; reenviar el mismo\nevento no reanuda dos veces.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Verificación de firma: sensible pero acotada y bien conocida.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.1.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/webhooks.py",
+        "tests/test_webhooks.py"
+      ],
+      "specRef": "f2-blog.md#F2.3.T2",
+      "comments": []
+    },
+    {
+      "id": "F2.4.T1",
+      "phase": 2,
+      "title": "Espera del deploy del blog",
+      "description": "Implementa `src/prelo/deploy_blog.py` según D10: para cada post pausado en `esperar_deploy`, consulta la URL pública\nesperada en guria.lat/blog (la que da `mdx.py` para `es`) hasta que responda 200, con espera creciente y un límite\nconfigurable; entonces llama a `retomar` con la URL. Si se agota el límite, avisa en Slack y deja el post pausado.\nRecibe cliente HTTP, `retomar`, aviso y reloj inyectados.\n\nDone when: these tests pass in `tests/test_deploy_blog.py`, con `respx` y reloj falso — un 404 y luego un 200\nreanudan una sola vez con la URL; tres 404 seguidos esperan intervalos crecientes; agotar el límite genera un aviso y\nno reanuda.",
+      "model": "agy/gemini-3.8-flash-medium",
+      "reason": "Bucle de sondeo simple.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.1.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/deploy_blog.py",
+        "tests/test_deploy_blog.py"
+      ],
+      "specRef": "f2-blog.md#F2.4.T1",
+      "comments": []
+    },
+    {
+      "id": "F2.5.T1",
+      "phase": 2,
+      "title": "Conexión del blog en app.py y api.py",
+      "description": "Añade a `montar_dependencias` el `tradutor` y `abrir_pr`, monta el router de `webhooks.py` en `api.py` y arranca el\nsondeo de `deploy_blog` junto a la agenda. Actualiza `README.md` con cómo configurar el webhook en `site-guria`.\n\nDone when: these tests pass in `tests/test_app.py` — `montar_dependencias` incluye `traduzir` y `abrir_pr`;\n`POST /webhooks/github` está montado y responde 401 a una firma inválida; con dobles, un tema llega a una pieza de\nLinkedIn pendiente con `url_blog` tras simular merge y deploy.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Cableado.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.2.T1",
+        "F2.3.T1",
+        "F2.3.T2",
+        "F2.4.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/app.py",
+        "src/prelo/api.py",
+        "tests/test_app.py",
+        "README.md"
+      ],
+      "specRef": "f2-blog.md#F2.5.T1",
+      "comments": []
+    },
+    {
+      "id": "F2.5.T2",
+      "phase": 2,
+      "title": "Evals de traducción",
+      "description": "Añade `evals/traducao/` al runner de F1.6: al menos 5 casos (texto en español con código, cifras y links) y la\nmétrica de calidad de traducción (LLM juez barato con rúbrica: fidelidad, naturalidad, cifras y links intactos) con\nsu umbral (NFR-2). No toques el runner: lo descubre solo.\n\nDone when: `uv run python evals/run.py traducao` corre los casos y reporta la métrica; con un tradutor falso que\ncambia una cifra, la corrida falla nombrando el caso.",
+      "model": "agy/gemini-3.1-pro-high",
+      "reason": "Casos y rúbrica; requiere criterio de calidad.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.2.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "evals/traducao/"
+      ],
+      "specRef": "f2-blog.md#F2.5.T2",
+      "comments": []
+    },
+    {
+      "id": "F3.1.T1",
+      "phase": 3,
+      "title": "Nodo adaptar_carrossel y canal instagram con dobles",
+      "description": "Añade el derivado `instagram` al grafo según *grafo* de docs/arch/001-prelo.md: tras `esperar_deploy`, además de\nLinkedIn, `adaptar_carrossel → revisar → aprovar` crea una pieza de canal `instagram` con `conteudo` =\n`{\"laminas\": [{\"titulo\", \"texto\"}], \"prompt_imagem\": str, \"url_blog\": str}` y pasa por la misma aprobación en Slack.\nAñade al `pyproject.toml` las dependencias de la fase (`playwright`, `openai`, `boto3`) y regenera `uv.lock`, para\nque las tareas paralelas no toquen esos archivos. Comprueba que `slack.notificar` muestra una pieza `instagram`\n(texto de cada lámina) y que la agenda la trata como un canal más (FR-13).\n\nDone when: these tests pass in `tests/test_grafo_carrossel.py`, con dobles — tras el deploy hay dos piezas\npendientes, `linkedin` e `instagram`; aprobar una no aprueba la otra; descartar el carrusel no afecta a LinkedIn; la\nrevisión de marca se aplica al texto de todas las láminas; y los tests de F1 y F2 siguen pasando.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Extiende un patrón ya fijado en F2.1; standard basta.",
+      "status": "backlog",
+      "dependencies": [
+        "F2.5.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/grafo.py",
+        "src/prelo/estado.py",
+        "pyproject.toml",
+        "uv.lock",
+        "tests/test_grafo_carrossel.py"
+      ],
+      "specRef": "f3-instagram.md#F3.1.T1",
+      "comments": []
+    },
+    {
+      "id": "F3.2.T1",
+      "phase": 3,
+      "title": "Plantillas HTML y PNG con Playwright",
+      "description": "Crea `templates/carrossel/` con una plantilla de portada, una de lámina y una de cierre (con el link al blog), con\nlos huecos `{{titulo}}`, `{{texto}}`, `{{imagem_url}}`, `{{n}}/{{total}}` de *Interfaces → Plantillas de carrusel*.\n`src/prelo/carrossel.py` rellena las plantillas (escapando HTML) y las pasa a PNG 1080×1350 con Playwright Chromium\nheadless (D5). Las plantillas no cargan nada de internet salvo `imagem_url`.\n\nDone when: these tests pass in `tests/test_carrossel.py` — 3 láminas producen 3 PNG de 1080×1350; un texto con\n`\u003cscript\u003e` sale escapado en el HTML; `{{n}}/{{total}}` se rellena como `2/3`; la última lámina lleva el link al blog;\nel test se salta si Chromium no está instalado.",
+      "model": "agy/gemini-3.1-pro-high",
+      "reason": "HTML/CSS y render con Playwright; standard.",
+      "status": "backlog",
+      "dependencies": [
+        "F3.1.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "templates/carrossel/",
+        "src/prelo/carrossel.py",
+        "tests/test_carrossel.py"
+      ],
+      "specRef": "f3-instagram.md#F3.2.T1",
+      "comments": []
+    },
+    {
+      "id": "F3.3.T1",
+      "phase": 3,
+      "title": "Imagen de fondo y subida a R2",
+      "description": "Implementa `src/prelo/imagens.py` con `gerar_imagem(prompt) -\u003e bytes` sobre `gpt-image-1` (D14): añade siempre al\nprompt la instrucción de no incluir texto, letras ni números (FR-12), y registra el costo en `custos` con agente\n`imagem`. Implementa `src/prelo/r2.py` con `subir(nome, dados, tipo) -\u003e url` sobre R2 (S3 compatible, `boto3`,\nvariables `R2_*`). Los clientes se inyectan.\n\nDone when: these tests pass in `tests/test_imagens.py`, con clientes falsos — el prompt enviado contiene la\nprohibición de texto aunque el prompt de entrada no la tenga; se registra una fila en `custos` con agente `imagem`;\n`subir` devuelve una URL pública con el nombre dado; un error del cliente de imágenes levanta un error legible.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Dos clientes de SDK acotados.",
+      "status": "backlog",
+      "dependencies": [
+        "F3.1.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/imagens.py",
+        "src/prelo/r2.py",
+        "tests/test_imagens.py"
+      ],
+      "specRef": "f3-instagram.md#F3.3.T1",
+      "comments": []
+    },
+    {
+      "id": "F3.3.T2",
+      "phase": 3,
+      "title": "Agente adaptador_carrossel",
+      "description": "Implementa `src/prelo/agentes/adaptador_carrossel.py` con la firma de `Dependencias.adaptar`: a partir del `Texto`\nen pt-BR y `url_blog` produce entre 4 y 8 láminas (`titulo` ≤ 60 caracteres, `texto` ≤ 220) y un `prompt_imagem`\ndescriptivo sin texto, con el modelo barato (D4). Las fuentes van delimitadas como en F1.3.T3 (NFR-4).\n\nDone when: these tests pass in `tests/test_adaptador_carrossel.py`, con un `Modelo` falso — devuelve entre 4 y 8\nláminas; un título de más de 60 caracteres se rechaza y se pide de nuevo una vez; el `url_blog` va en la última\nlámina; con `feedback` el comentario aparece en el prompt.",
+      "model": "agy/gemini-3.8-flash-medium",
+      "reason": "Prompt y validación de longitudes; tarea mecánica.",
+      "status": "backlog",
+      "dependencies": [
+        "F3.1.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/agentes/adaptador_carrossel.py",
+        "tests/test_adaptador_carrossel.py"
+      ],
+      "specRef": "f3-instagram.md#F3.3.T2",
+      "comments": []
+    },
+    {
+      "id": "F3.4.T1",
+      "phase": 3,
+      "title": "Publicador de Instagram",
+      "description": "Implementa `src/prelo/publicadores/instagram.py`: un `Publicador` con `canal = \"instagram\"` que publica un carrusel\ncon la Instagram Graph API (`IG_TOKEN`, `IG_USER_ID`) vía `httpx`: crea un contenedor por imagen (URL de R2), el\ncontenedor `CAROUSEL` con el pie de foto, espera a que esté `FINISHED` y lo publica. Devuelve una `Publicacao` con\npermalink e `id_externo`. Ningún error ni log contiene el token.\n\nDone when: these tests pass in `tests/test_instagram.py`, con `respx` — 3 imágenes generan 3 contenedores hijos y uno\n`CAROUSEL` con sus ids; se espera al estado `FINISHED` antes de publicar; devuelve permalink e `id_externo`; un\ncontenedor en `ERROR` levanta un error sin el token.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "API de varios pasos con espera de estado.",
+      "status": "backlog",
+      "dependencies": [
+        "F3.1.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/publicadores/instagram.py",
+        "tests/test_instagram.py"
+      ],
+      "specRef": "f3-instagram.md#F3.4.T1",
+      "comments": []
+    },
+    {
+      "id": "F3.5.T1",
+      "phase": 3,
+      "title": "Conexión del carrusel",
+      "description": "Añade a `montar_dependencias` el adaptador `instagram`. Al aprobarse una pieza `instagram`, antes de agendarla, genera\nla imagen de fondo, renderiza las láminas, sube los PNG a R2 y guarda sus URLs en `conteudo`. Registra el publicador\nde Instagram en la agenda solo si `IG_TOKEN` existe; sin él, la pieza queda `aprovada` y Slack avisa. Instala\nChromium de Playwright en el `Dockerfile`.\n\nDone when: these tests pass in `tests/test_app.py` — `montar_dependencias` incluye el adaptador `instagram`; con\ndobles, aprobar un carrusel deja en `conteudo` una URL de R2 por lámina; sin `IG_TOKEN` la agenda no registra el\npublicador de Instagram. Además `docker build` termina y `playwright` encuentra Chromium dentro de la imagen.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Cableado más un paso de preparación con varios servicios.",
+      "status": "backlog",
+      "dependencies": [
+        "F3.2.T1",
+        "F3.3.T1",
+        "F3.3.T2",
+        "F3.4.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/app.py",
+        "Dockerfile",
+        "tests/test_app.py"
+      ],
+      "specRef": "f3-instagram.md#F3.5.T1",
+      "comments": []
+    },
+    {
+      "id": "F4.1.T1",
+      "phase": 4,
+      "title": "Tabla metricas, worker diario y /prelo sugerir con dobles",
+      "description": "Añade `src/prelo/db/migracoes/002_metricas.sql` con la tabla `metricas` de *Data model* y los métodos del\n`Repositorio` para guardarlas y leer la última de cada publicación. Crea `src/prelo/metricas.py` con un protocolo\n`Leitor` (`canal`, `ler(publicacao) -\u003e {\"reacoes\": int, \"comentarios\": list}`) y `coletar(leitores, repo)`, que\nrecorre las publicaciones de LinkedIn e Instagram y guarda una fila por publicación. En `slack.py`, `/prelo sugerir`\nllama a una función `sugerir() -\u003e list[{\"tema\", \"origem\", \"link\"}]` inyectada y muestra 3 temas con su link y un\nbotón `prelo_escolher` que inicia el post como `/prelo \u003ctema\u003e` con `origem = sugestao` (FR-2).\n\nDone when: these tests pass in `tests/test_metricas_fluxo.py`, con dobles — `coletar` con dos publicaciones guarda\ndos filas y una publicación sin lector de su canal se salta; la migración 002 se aplica sobre la 001 sin errores;\n`/prelo sugerir` muestra 3 temas, cada uno con su link; pulsar `prelo_escolher` llama a `iniciar` con ese tema y\n`origem = sugestao`; y `tests/test_slack.py` sigue pasando.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Esqueleto sobre patrones ya fijados.",
+      "status": "backlog",
+      "dependencies": [
+        "F3.5.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/db/migracoes/002_metricas.sql",
+        "src/prelo/db/repositorio.py",
+        "src/prelo/metricas.py",
+        "src/prelo/slack.py",
+        "tests/test_metricas_fluxo.py",
+        "tests/test_slack.py"
+      ],
+      "specRef": "f4-metricas-nube.md#F4.1.T1",
+      "comments": []
+    },
+    {
+      "id": "F4.2.T1",
+      "phase": 4,
+      "title": "Lectores de LinkedIn e Instagram",
+      "description": "Implementa en `src/prelo/metricas.py` los `Leitor` reales: LinkedIn (reacciones y comentarios del post por\n`id_externo`; las impresiones no, ver *Non-goals* del PRD) e Instagram (`like_count`, `comments_count` y los\ncomentarios del media). Vía `httpx`, con los tokens de `config`. Un fallo de un lector no detiene la colecta de las\ndemás publicaciones y se avisa en Slack.\n\nDone when: these tests pass in `tests/test_metricas.py`, con `respx` — LinkedIn devuelve el número de reacciones y\nla lista de comentarios con autor y texto; Instagram igual; un 500 en una publicación no impide guardar las\ndemás; ningún error contiene un token.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Dos clientes HTTP con paginación de comentarios.",
+      "status": "backlog",
+      "dependencies": [
+        "F4.1.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/metricas.py",
+        "tests/test_metricas.py"
+      ],
+      "specRef": "f4-metricas-nube.md#F4.2.T1",
+      "comments": []
+    },
+    {
+      "id": "F4.3.T1",
+      "phase": 4,
+      "title": "Sugerencia de temas",
+      "description": "Implementa `src/prelo/sugestoes.py` con `sugerir() -\u003e list[{\"tema\", \"origem\", \"link\"}]` según *sugestoes* de\ndocs/arch/001-prelo.md: junta los commits de los últimos 14 días de los repos de Héctor (GitHub API), la ruta de\nestudio y noticias de IA (vía `Buscador`), y pide al `Modelo` 3 temas, cada uno con el link de su origen (commit,\ndocumento o noticia). El contenido externo va delimitado como datos (NFR-4). Excluye temas ya publicados en los\núltimos 30 días.\n\nDone when: these tests pass in `tests/test_sugestoes.py`, con clientes falsos — devuelve exactamente 3 sugerencias,\ncada una con `origem` y un `link` que existe en las entradas; un tema publicado hace 10 días no se sugiere; sin\ncommits recientes igual sugiere desde las otras fuentes; un mensaje de commit con instrucciones queda dentro del\ndelimitador.",
+      "model": "agy/gemini-3.1-pro-high",
+      "reason": "Agregación de fuentes y prompt con validación.",
+      "status": "backlog",
+      "dependencies": [
+        "F4.1.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/sugestoes.py",
+        "tests/test_sugestoes.py"
+      ],
+      "specRef": "f4-metricas-nube.md#F4.3.T1",
+      "comments": []
+    },
+    {
+      "id": "F4.4.T1",
+      "phase": 4,
+      "title": "Infra en AWS con Terraform",
+      "description": "Crea `infra/terraform/` según D12: una EC2 (Ubuntu, Docker y Compose instalados por `user_data`) en una VPC con\nsubred pública, security group que solo abre 443 (para el webhook de GitHub y `POST /posts`) y SSH restringido a una\nIP variable, Elastic IP, secretos en SSM Parameter Store (leídos al arrancar para generar el `.env`), un volumen EBS\npara Postgres y backups diarios con snapshots de DLM. Estado remoto en S3. Variables y outputs documentados en\n`infra/terraform/README.md`, incluida la medición de memoria de Langfuse v3 (riesgo del ARCH) y el plan B con\nLangfuse Cloud.\n\nDone when: `terraform fmt -check`, `terraform validate` y `tflint` pasan en `infra/terraform/`; el security group no\nabre ningún puerto a `0.0.0.0/0` salvo 443; ningún secreto aparece en un `.tf`. No hay tests de Python.",
+      "model": "claude/claude-sonnet-4-6",
+      "reason": "Terraform estándar con cuidado de seguridad de red y secretos.",
+      "status": "backlog",
+      "dependencies": [
+        "F4.1.T1"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "infra/terraform/"
+      ],
+      "specRef": "f4-metricas-nube.md#F4.4.T1",
+      "comments": []
+    },
+    {
+      "id": "F4.5.T1",
+      "phase": 4,
+      "title": "Deploy continuo y conexión final",
+      "description": "Crea `.github/workflows/deploy.yml`: al hacer push a `main` con CI y evals verdes, construye la imagen, la publica\nen GHCR y despliega en la EC2 por SSM Run Command (`docker compose pull \u0026\u0026 docker compose up -d`), sin claves SSH\nen el repo (OIDC hacia un rol de AWS). En `app.py`, registra los lectores de métricas en un worker diario y pasa\n`sugestoes.sugerir` a la app de Slack.\n\nDone when: these tests pass in `tests/test_app.py` — la app registra el worker de métricas con período diario;\n`/prelo sugerir` usa `sugestoes.sugerir`. Además `actionlint` pasa sobre `deploy.yml` y el workflow solo corre tras\nCI y evals verdes.",
+      "model": "muse/muse-wonder-1.0",
+      "reason": "Workflow de deploy con OIDC y cableado final.",
+      "status": "backlog",
+      "dependencies": [
+        "F4.2.T1",
+        "F4.3.T1",
+        "F4.4.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        ".github/workflows/deploy.yml",
+        "src/prelo/app.py",
+        "tests/test_app.py"
+      ],
+      "specRef": "f4-metricas-nube.md#F4.5.T1",
+      "comments": []
+    }
+  ]
+}
