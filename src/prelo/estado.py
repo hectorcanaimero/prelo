@@ -13,7 +13,7 @@ from prelo.interfaces import Decisao, Fonte, Texto, Violacao
 
 
 def _unir(a: dict, b: dict) -> dict:
-    return {**a, **b}
+    return {**(a or {}), **(b or {})}
 
 
 class EstadoPost(TypedDict):
