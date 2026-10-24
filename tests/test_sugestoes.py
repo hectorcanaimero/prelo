@@ -116,6 +116,22 @@ def test_commits_github_lee_commits_de_cada_repo(monkeypatch):
     assert llamadas[0][2] == {"since": desde.isoformat()}
 
 
+class ModeloCrudo(Modelo):
+    def gerar(self, prompt, *, agente, post_id):
+        return self.temas
+
+
+@pytest.mark.parametrize("crudo", ["```json\n[]\n```", "no es json", '{"tema": "A"}'])
+def test_respuesta_no_json_o_no_lista_da_valueerror_con_contexto(crudo):
+    with pytest.raises(ValueError, match="respuesta del modelo"):
+        _run(ModeloCrudo(crudo))
+
+
+def test_entradas_malformadas_se_descartan():
+    with pytest.raises(ValueError, match="válidos"):
+        _run(ModeloCrudo('["A", 1, null, {"tema": 1, "origem": "x", "link": 2}]'))
+
+
 def test_menos_de_tres_validos_falla():
     with pytest.raises(ValueError):
         _run(Modelo(CINCO[:2]))

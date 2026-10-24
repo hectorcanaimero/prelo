@@ -82,11 +82,19 @@ def sugerir(
 
     datos = "\n".join(f"[{tipo}] {_limpar(texto)} ({_limpar(url)})" for tipo, texto, url in entradas)
     prompt = PROMPT.format(n=N_CANDIDATOS, publicados=json.dumps(recientes, ensure_ascii=False), datos=datos)
-    candidatos = json.loads(modelo.gerar(prompt, agente=AGENTE_NOME, post_id=post_id))
+    crudo = modelo.gerar(prompt, agente=AGENTE_NOME, post_id=post_id)
+    try:
+        candidatos = json.loads(crudo)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"respuesta del modelo no es JSON válido: {crudo[:200]!r}") from e
+    if not isinstance(candidatos, list):
+        raise ValueError(f"respuesta del modelo no es una lista: {crudo[:200]!r}")
 
     out: list[dict[str, str]] = []
     for c in candidatos:
-        if c.get("link") in links and c.get("origem") and c.get("tema") and c["tema"].casefold() not in vetados:
+        if not (isinstance(c, dict) and all(isinstance(c.get(k), str) and c[k] for k in ("tema", "origem", "link"))):
+            continue  # entrada malformada: se descarta igual que un link inventado
+        if c["link"] in links and c["tema"].casefold() not in vetados:
             out.append({"tema": c["tema"], "origem": c["origem"], "link": c["link"]})
     if len(out) < N_TEMAS:
         raise ValueError(f"el modelo devolvió {len(out)} temas válidos, se necesitan {N_TEMAS}")
