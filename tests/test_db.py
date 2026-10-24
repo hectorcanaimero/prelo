@@ -6,7 +6,7 @@ import psycopg
 import pytest
 
 from prelo.db.conexao import conectar
-from prelo.db.migrar import aplicar_migracoes
+from prelo.db.migrar import DIR, aplicar_migracoes
 from prelo.db.repositorio import RepositorioPg
 from prelo.interfaces import Custo, Peca, Post, Publicacao, Repositorio
 
@@ -31,7 +31,7 @@ def test_migraciones_idempotentes(pg_url):
     with psycopg.connect(pg_url, autocommit=True) as conn:
         aplicar_migracoes(conn)
         aplicar_migracoes(conn)
-        assert conn.execute("SELECT count(*) FROM migracoes").fetchone()[0] == 1
+        assert conn.execute("SELECT count(*) FROM migracoes").fetchone()[0] == len(list(DIR.glob("[0-9][0-9][0-9]_*.sql")))
 
 
 def test_post_con_dos_fuentes(pg_url):
@@ -95,4 +95,4 @@ def test_registrar_publicacion(pg_url):
         row = conn.execute(
             "SELECT peca_id::text, canal, url, id_externo FROM publicacoes WHERE id = %s", (pub.id,)
         ).fetchone()
-        assert tuple(row.values()) == (peca.id, "linkedin", "http://li/1", "urn:1")
+        assert row ==(peca.id, "linkedin", "http://li/1", "urn:1")
