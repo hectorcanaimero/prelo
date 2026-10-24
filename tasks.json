@@ -460,7 +460,7 @@
       "reason": "Extiende un patrón ya fijado en F2.1; standard basta.",
       "status": "backlog",
       "dependencies": [
-        "F2.5.T1"
+        "F2.1.T1"
       ],
       "estimateHours": 3.0,
       "files": [
@@ -560,6 +560,7 @@
       "reason": "Cableado más un paso de preparación con varios servicios.",
       "status": "backlog",
       "dependencies": [
+        "F2.5.T1",
         "F3.2.T1",
         "F3.3.T1",
         "F3.3.T2",
@@ -583,7 +584,7 @@
       "reason": "Esqueleto sobre patrones ya fijados.",
       "status": "backlog",
       "dependencies": [
-        "F3.5.T1"
+        "F3.1.T1"
       ],
       "estimateHours": 3.0,
       "files": [
@@ -662,6 +663,7 @@
       "reason": "Workflow de deploy con OIDC y cableado final.",
       "status": "backlog",
       "dependencies": [
+        "F3.5.T1",
         "F4.2.T1",
         "F4.3.T1",
         "F4.4.T1"
@@ -704,7 +706,7 @@
       "reason": "Integración de SDK nuevo con docs vivas; requiere leer bien el contrato.",
       "status": "backlog",
       "dependencies": [
-        "F4.5.T1"
+        "F4.1.T1"
       ],
       "estimateHours": 3.0,
       "files": [
@@ -768,6 +770,7 @@
       "reason": "Composición de puntuaciones en código; acotado.",
       "status": "backlog",
       "dependencies": [
+        "F4.3.T1",
         "F5.1.T1"
       ],
       "estimateHours": 2.0,
@@ -787,7 +790,7 @@
       "reason": "Framework de video nuevo más publicación; requiere leer su contrato.",
       "status": "backlog",
       "dependencies": [
-        "F4.5.T1"
+        "F3.5.T1"
       ],
       "estimateHours": 4.0,
       "files": [

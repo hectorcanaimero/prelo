@@ -37,7 +37,7 @@ dos filas y una publicación sin lector de su canal se salta; la migración 002 
 - **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Esqueleto sobre patrones ya fijados.
-- **Dependencies**: F3.5.T1
+- **Dependencies**: F3.1.T1
 - **Files**:
   - `src/prelo/db/migracoes/002_metricas.sql`
   - `src/prelo/db/repositorio.py`
@@ -127,7 +127,7 @@ CI y evals verdes.
 - **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Workflow de deploy con OIDC y cableado final.
-- **Dependencies**: F4.2.T1, F4.3.T1, F4.4.T1
+- **Dependencies**: F3.5.T1, F4.2.T1, F4.3.T1, F4.4.T1
 - **Files**:
   - `.github/workflows/deploy.yml`
   - `src/prelo/app.py`

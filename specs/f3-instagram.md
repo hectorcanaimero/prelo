@@ -37,7 +37,7 @@ revisión de marca se aplica al texto de todas las láminas; y los tests de F1 y
 - **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Extiende un patrón ya fijado en F2.1; standard basta.
-- **Dependencies**: F2.5.T1
+- **Dependencies**: F2.1.T1
 - **Files**:
   - `src/prelo/grafo.py`
   - `src/prelo/estado.py`
@@ -144,7 +144,7 @@ publicador de Instagram. Además `docker build` termina y `playwright` encuentra
 - **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Cableado más un paso de preparación con varios servicios.
-- **Dependencies**: F3.2.T1, F3.3.T1, F3.3.T2, F3.4.T1
+- **Dependencies**: F2.5.T1, F3.2.T1, F3.3.T1, F3.3.T2, F3.4.T1
 - **Files**:
   - `src/prelo/app.py`
   - `Dockerfile`
