@@ -33,9 +33,7 @@ class LeitorFalso:
 
 
 def _pub(canal, i):
-    return Publicacao(
-        id=f"p{i}", peca_id="x", canal=canal, url="u", publicada_em=datetime.now(UTC), id_externo=f"e{i}"
-    )
+    return Publicacao(id=f"p{i}", peca_id="x", canal=canal, url="u", publicada_em=datetime.now(UTC), id_externo=f"e{i}")
 
 
 def test_coletar_guarda_una_fila_por_publicacion():
@@ -64,7 +62,9 @@ def test_repo_guarda_y_lee_ultima_metrica(pg_url):
         repo.criar_post(Post(id=pid, tema="t", origem="editor", criado_em=datetime.now(UTC), estado="x"))
         repo.criar_peca(Peca(id=peid, post_id=pid, canal="linkedin", conteudo={}, violacoes=[], status="publicada"))
         repo.registrar_publicacao(
-            Publicacao(id=pub_id, peca_id=peid, canal="linkedin", url="u", publicada_em=datetime.now(UTC), id_externo="e")
+            Publicacao(
+                id=pub_id, peca_id=peid, canal="linkedin", url="u", publicada_em=datetime.now(UTC), id_externo="e"
+            )
         )
         assert repo.ler_ultima_metrica(pub_id) is None
         repo.salvar_metrica(pub_id, reacoes=1, comentarios=[])

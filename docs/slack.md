@@ -14,3 +14,5 @@
 - Cada pieza pendiente se publica en `SLACK_CANAL` con el texto, las fuentes, las violaciones y el costo (por agente y total).
 - Botones: **Aprobar**, **Editar** (abre un modal con el campo `comentario`) y **Descartar**. Cada uno reanuda el flujo y actualiza el mensaje.
 - Si la pieza tiene violaciones de marca, **Aprobar** no se muestra: hay que editar o descartar.
+- Las piezas de Instagram (carrusel) muestran el texto de cada lámina. Llegan después de decidir la de LinkedIn del
+  mismo post: Prelo pide una aprobación por vez y cada botón reanuda exactamente la pieza de su mensaje (`peca_id`).
