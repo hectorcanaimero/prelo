@@ -1,0 +1,88 @@
+{
+  "umbrais": {
+    "traducao": 0.8
+  },
+  "rubrica": "Evalúa la calidad de traducción del español a português do Brasil (pt) e inglés (en) con cuatro criterios: (1) fidelidad completa al significado técnico del original sin omitir ni inventar afirmaciones; (2) naturalidad y fluidez idiomática en pt-BR y en inglés; (3) cifras, porcentajes, unidades y fechas intactos; (4) links en Markdown y bloques de código cercados (```) intactos y sin alterar.",
+  "casos": [
+    {
+      "id": "rag-latencia",
+      "tema": "Caché semántica para reducir latencia en RAG",
+      "texto": {
+        "titulo": "Cómo bajamos la latencia de RAG un 42% en 2025",
+        "resumo": "Una caché de embeddings delante del buscador redujo el p95 de 240 ms a 139 ms sin perder precisión.",
+        "corpo": "En 2025 medimos que el 35% de las consultas a nuestro pipeline se repetían con variaciones mínimas. Añadimos una caché con umbral de similitud de 0.92 según la [guía de arquitectura RAG](https://guria.lat/docs/rag-cache) y el tiempo p95 cayó un 42%, pasando de 240 ms a 139 ms.\n\n```python\ndef consultar_cache(vec: list[float], umbral: float = 0.92) -> str | None:\n    hit = indice.buscar(vec, top_k=1)\n    return hit.respuesta if hit and hit.score >= umbral else None\n```"
+      },
+      "fontes": [
+        {
+          "url": "https://guria.lat/docs/rag-cache",
+          "titulo": "Guía de arquitectura RAG",
+          "trecho": "En 2025 el 35% de las consultas se repetían; con un umbral de 0.92 y top_k=1 la latencia p95 bajó un 42%, de 240 ms a 139 ms."
+        }
+      ]
+    },
+    {
+      "id": "pgvector-hnsw",
+      "tema": "Índices HNSW en Postgres con pgvector",
+      "texto": {
+        "titulo": "Índices HNSW en pgvector: 98% de recall con 16 conexiones",
+        "resumo": "Ajustar m=16 y ef_construction=64 mantuvo un 98% de recall sobre 500000 vectores en Postgres 16.",
+        "corpo": "Al indexar 500000 fragmentos en Postgres 16 comparamos IVFFlat contra HNSW siguiendo las [notas de pgvector](https://guria.lat/docs/pgvector-hnsw). Con `m = 16` y `ef_construction = 64` logramos un 98% de recall en 12 ms por consulta.\n\n```sql\nCREATE INDEX idx_fontes_embedding ON fontes\nUSING hnsw (embedding vector_cosine_ops)\nWITH (m = 16, ef_construction = 64);\n```"
+      },
+      "fontes": [
+        {
+          "url": "https://guria.lat/docs/pgvector-hnsw",
+          "titulo": "Notas de pgvector",
+          "trecho": "Sobre 500000 vectores en Postgres 16, el índice HNSW con m = 16 y ef_construction = 64 alcanzó 98% de recall en 12 ms."
+        }
+      ]
+    },
+    {
+      "id": "langgraph-checkpointer",
+      "tema": "Persistencia de pausas humanas con LangGraph y Postgres",
+      "texto": {
+        "titulo": "Pausar un grafo durante 72 horas sin perder el estado",
+        "resumo": "Con PostgresSaver cada hilo persiste su checkpoint y reanuda el 100% de las aprobaciones tras reinicios.",
+        "corpo": "Un flujo con aprobación humana puede esperar 72 horas antes de recibir respuesta. Usando [PostgresSaver en LangGraph](https://guria.lat/docs/langgraph-postgres) verificamos en 50 pruebas de reinicio que el 100% de los hilos conservaron su borrador intacto tras un límite de 2 reintentos.\n\n```python\nwith PostgresSaver.from_conn_string(db_url) as checkpointer:\n    grafo = construir(deps, checkpointer=checkpointer)\n    grafo.invoke(Command(resume={\"decisao\": \"aprovado\"}), config={\"configurable\": {\"thread_id\": post_id}})\n```"
+      },
+      "fontes": [
+        {
+          "url": "https://guria.lat/docs/langgraph-postgres",
+          "titulo": "PostgresSaver en LangGraph",
+          "trecho": "Tras esperar 72 horas y hasta 2 reintentos, las 50 pruebas de reinicio conservaron el 100% de los estados."
+        }
+      ]
+    },
+    {
+      "id": "costos-presupuesto",
+      "tema": "Control de costos de tokens por post y agente",
+      "texto": {
+        "titulo": "Mantener el costo por post bajo 0.50 USD combinando modelos",
+        "resumo": "Reservar el modelo fuerte para la pieza madre redujo el gasto un 65% hasta una media de 0.18 USD por post.",
+        "corpo": "Para no superar el techo de 0.50 USD por publicación documentado en el [manual de costos](https://guria.lat/docs/costos-llm), usamos el modelo fuerte solo en el redactor y el modelo ligero en los otros 3 agentes. El gasto medio bajó un 65% y quedó en 0.18 USD.\n\n```python\ndef dentro_de_presupuesto(total_usd: float, limite: float = 0.50) -> bool:\n    return round(total_usd, 4) < limite\n```"
+      },
+      "fontes": [
+        {
+          "url": "https://guria.lat/docs/costos-llm",
+          "titulo": "Manual de costos",
+          "trecho": "Con un límite de 0.50 USD (redondeado a 4 decimales) y 3 agentes ligeros, el gasto bajó un 65% hasta 0.18 USD por post."
+        }
+      ]
+    },
+    {
+      "id": "seguridad-delimitadores",
+      "tema": "Defensa contra prompt injection en fuentes externas",
+      "texto": {
+        "titulo": "Neutralizar el 100% de los cierres de etiqueta en fuentes web",
+        "resumo": "Encerrar cada fuente en etiquetas XML y limpiar cierres falsos bloqueó los 25 vectores de inyección probados.",
+        "corpo": "Las fuentes externas nunca deben mezclarse con las instrucciones del sistema. Siguiendo la [lista de verificación OWASP LLM01](https://guria.lat/docs/owasp-llm01), saneamos las etiquetas antes de interpolar cada fragmento y bloqueamos el 100% de los 25 intentos de inyección evaluados en 2026.\n\n```python\ndef aislar_fuente(trecho: str) -> str:\n    limpio = trecho.replace(\"</fonte>\", \"[bloqueado]\")\n    return f\"<fonte>\\n{limpio}\\n</fonte>\"\n```"
+      },
+      "fontes": [
+        {
+          "url": "https://guria.lat/docs/owasp-llm01",
+          "titulo": "OWASP LLM01",
+          "trecho": "La guía LLM01 de 2026 evaluó 25 vectores de inyección y bloqueó el 100% al sanear etiquetas de cierre."
+        }
+      ]
+    }
+  ]
+}

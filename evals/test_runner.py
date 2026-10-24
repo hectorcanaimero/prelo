@@ -97,3 +97,22 @@ def test_agente_linkedin_encadena_redator_y_adaptador():
     assert run._agente_linkedin(m)(CASO) == "post final"
     assert [a for a, _, _ in m.prompts] == ["redator", "adaptador_linkedin"]
     assert {pid for _, pid, _ in m.prompts} == {"eval-c1"}
+
+
+from traducao.test_traducao import (
+    test_casos_reales_de_traducao_tienen_codigo_cifras_links_y_rubrica,
+    test_cli_run_traducao_ejecuta_casos_y_reporta_metrica,
+    test_correr_suite_traducao_reporta_metrica_y_sale_0,
+    test_juiz_traducao_delimita_texto_original_y_neutraliza_inyeccion,
+    test_tradutor_falso_que_altera_link_o_codigo_falla_nombrando_el_caso,
+    test_tradutor_falso_que_cambia_una_cifra_falla_nombrando_el_caso,
+)
+
+__all__ = [
+    "test_casos_reales_de_traducao_tienen_codigo_cifras_links_y_rubrica",
+    "test_cli_run_traducao_ejecuta_casos_y_reporta_metrica",
+    "test_correr_suite_traducao_reporta_metrica_y_sale_0",
+    "test_juiz_traducao_delimita_texto_original_y_neutraliza_inyeccion",
+    "test_tradutor_falso_que_altera_link_o_codigo_falla_nombrando_el_caso",
+    "test_tradutor_falso_que_cambia_una_cifra_falla_nombrando_el_caso",
+]
