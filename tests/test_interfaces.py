@@ -154,14 +154,23 @@ def test_dataclasses_del_data_model_se_construyen() -> None:
     peca = Peca(id="pe1", post_id="p1", canal="linkedin", conteudo={}, violacoes=[], status="pendente")
     pub = Publicacao(id="pb1", peca_id="pe1", canal="linkedin", url="https://x", publicada_em=now, id_externo="ext")
     custo = Custo(
-        post_id="p1", agente="redator", modelo="m",
-        tokens_entrada=1, tokens_saida=2, usd=Decimal("0.01"), criado_em=now,
+        post_id="p1",
+        agente="redator",
+        modelo="m",
+        tokens_entrada=1,
+        tokens_saida=2,
+        usd=Decimal("0.01"),
+        criado_em=now,
     )
     # Transicion valida: pendente -> aprovada con decisao.
     peca.status = "aprovada"
     peca.decisao = "aprovado"
     assert (post.origem, peca.status, peca.decisao, pub.canal, custo.agente) == (
-        "editor", "aprovada", "aprovado", "linkedin", "redator",
+        "editor",
+        "aprovada",
+        "aprovado",
+        "linkedin",
+        "redator",
     )
 
 
