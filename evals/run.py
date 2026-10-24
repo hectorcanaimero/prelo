@@ -165,7 +165,7 @@ def _real() -> tuple[dict[str, Agente], Juiz, Regras, Callable[[], Decimal]]:
     repo = Repo()
     clave = s.ANTHROPIC_API_KEY.get_secret_value().strip()
     modelo: Any = (
-        ModeloAnthropic(Anthropic(api_key=clave), SinTraza(), repo)  # type: ignore[arg-type]
+        ModeloAnthropic(Anthropic(api_key=clave, base_url=s.ANTHROPIC_BASE_URL or None), SinTraza(), repo)  # type: ignore[arg-type]
         if clave
         else ModeloLocalDeterminista()
     )
@@ -174,13 +174,25 @@ def _real() -> tuple[dict[str, Agente], Juiz, Regras, Callable[[], Decimal]]:
         "traducao": _agente_traducao(modelo),
     }
     juiz = _juiz(modelo)
+    juizes: list[Any] = []
+    if s.ANTHROPIC_BASE_URL and clave:
+        import httpx
+
+        from prelo.juizo import JuizRouter
+
+        modelos = [m.strip() for m in s.JEV_MODELOS.split(",") if m.strip()]
+        juizes.append(JuizRouter(httpx.Client(), s.ANTHROPIC_BASE_URL, clave, modelos, repo))  # type: ignore[arg-type]
     key = s.TYPESAFE_API_KEY.get_secret_value().strip()
     if key:
         from typesafe_sdk import TypeSafeClient
 
         from prelo.juizo import JuizTypeSafe
 
-        juiz = _fidelidade_jev(JuizTypeSafe(lambda: TypeSafeClient(api_key=key), repo), juiz)  # type: ignore[arg-type]
+        juizes.append(JuizTypeSafe(lambda: TypeSafeClient(api_key=key), repo))  # type: ignore[arg-type]
+    if juizes:
+        from prelo.juizo import JuizEmCadeia
+
+        juiz = _fidelidade_jev(JuizEmCadeia(*juizes), juiz)
     return agentes, juiz, carregar_regras(s), lambda: repo.total
 
 

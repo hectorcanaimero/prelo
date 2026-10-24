@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
 
     ANTHROPIC_API_KEY: SecretToken = SecretStr("")
+    ANTHROPIC_BASE_URL: str = ""  # 9router: su clave va en ANTHROPIC_API_KEY
+    JEV_MODELOS: str = "openrouter/typesafe/jev-1.13"  # modelos de Jev en 9router, en orden, separados por comas
     FAL_KEY: SecretToken = SecretStr("")
     FAL_MODELO_IMAGEN: str = "fal-ai/flux/schnell"
     FAL_USD_POR_IMAGEN: Decimal = Decimal("0.003")
