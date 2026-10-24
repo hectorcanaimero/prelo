@@ -35,7 +35,14 @@ cp .env.example .env   # o crea .env a mano con las variables de abajo
 docker compose up
 ```
 
-Levanta Postgres, Langfuse (trazas, http://localhost:3000) y Prelo. Las migraciones se aplican al arrancar.
+Sin perfil levanta solo Prelo, con `DATABASE_URL` y `LANGFUSE_HOST` externos. Los perfiles se eligen con
+`COMPOSE_PROFILES` en `.env`:
+
+- `local`: suma Postgres y Langfuse (http://localhost:3000, con ClickHouse, Redis y MinIO) para no depender de nada externo.
+- `tunnel`: suma el túnel de Cloudflare `prelo` hacia https://prelo.knaimero.app (`cloudflared.yml`). En `.env`,
+  `TUNNEL_CREDENTIALS` es la ruta al JSON del túnel (`~/.cloudflared/<id>.json`).
+
+Las migraciones se aplican al arrancar.
 Comprobación: `curl http://localhost:8000/saude` → `200` si la base responde, `503` si no.
 
 Desarrollo local: `uv sync && uv run pytest`.

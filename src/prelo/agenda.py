@@ -39,6 +39,9 @@ class Agenda:
         token_expira_em: datetime | None = None,
     ) -> None:
         self.publicadores, self.repo, self.aviso, self.reloj = publicadores, repo, aviso, reloj
+        # LINKEDIN_TOKEN_EXPIRES_AT suele ser solo una fecha ("2026-12-24"): sin zona se toma como hora local de TZ
+        if token_expira_em and token_expira_em.tzinfo is None:
+            token_expira_em = token_expira_em.replace(tzinfo=TZ)
         self.hora, self.token_expira_em = hora, token_expira_em
         self._token_avisado = False
 

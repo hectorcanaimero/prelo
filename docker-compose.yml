@@ -1,5 +1,10 @@
+# Perfiles (COMPOSE_PROFILES en .env o --profile):
+# - sin perfil: solo prelo, con DATABASE_URL y LANGFUSE_HOST externos.
+# - tunnel: más el túnel de Cloudflare a prelo.knaimero.app (homelab); TUNNEL_CREDENTIALS en .env.
+# - local: Postgres y Langfuse (con ClickHouse, Redis y MinIO) en contenedores, para levantar todo sin servicios externos.
 services:
   postgres:
+    profiles: ["local"]
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -17,6 +22,7 @@ services:
       retries: 10
 
   redis:
+    profiles: ["local"]
     image: redis:7-alpine
     restart: unless-stopped
     command: >
@@ -28,6 +34,7 @@ services:
       retries: 10
 
   clickhouse:
+    profiles: ["local"]
     image: clickhouse/clickhouse-server:24.10-alpine
     restart: unless-stopped
     user: "101:101"
@@ -45,6 +52,7 @@ services:
       retries: 10
 
   minio:
+    profiles: ["local"]
     image: minio/minio:RELEASE.2024-12-18T13-15-44Z
     restart: unless-stopped
     entrypoint: sh
@@ -61,6 +69,7 @@ services:
       retries: 10
 
   langfuse-worker:
+    profiles: ["local"]
     image: langfuse/langfuse-worker:3
     restart: unless-stopped
     depends_on:
@@ -101,6 +110,7 @@ services:
       LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
 
   langfuse:
+    profiles: ["local"]
     image: langfuse/langfuse:3
     restart: unless-stopped
     depends_on:
@@ -129,44 +139,31 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
       langfuse:
         condition: service_started
+        required: false
     env_file:
       - path: .env
         required: false
     environment:
+      # con el perfil local apuntan a los contenedores; si no, salen de .env
       DATABASE_URL: ${DATABASE_URL:-postgresql://prelo:prelo@postgres:5432/prelo}
       LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse:3000}
-      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
-      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
-      JEV_MODELOS: ${JEV_MODELOS:-openrouter/typesafe/jev-1.13}
-      FAL_KEY: ${FAL_KEY:-}
-      FAL_MODELO_IMAGEN: ${FAL_MODELO_IMAGEN:-fal-ai/flux/schnell}
-      FAL_USD_POR_IMAGEN: ${FAL_USD_POR_IMAGEN:-0.003}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
-      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
-      SLACK_CANAL: ${SLACK_CANAL:-}
-      LINKEDIN_TOKEN: ${LINKEDIN_TOKEN:-}
-      LINKEDIN_AUTHOR_URN: ${LINKEDIN_AUTHOR_URN:-}
-      LINKEDIN_TOKEN_EXPIRES_AT: ${LINKEDIN_TOKEN_EXPIRES_AT:-}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
-      GITHUB_REPO: ${GITHUB_REPO:-hectorcanaimero/site-guria}
-      IG_TOKEN: ${IG_TOKEN:-}
-      IG_USER_ID: ${IG_USER_ID:-}
-      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
-      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:-}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
-      R2_BUCKET: ${R2_BUCKET:-}
-      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
-      PRELO_API_TOKEN: ${PRELO_API_TOKEN:-}
-      PRELO_BLOQUEIA: ${PRELO_BLOQUEIA:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000" # para probarlo en local; desde fuera se entra por el túnel
+
+  tunnel:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:2026.9.3
+    restart: unless-stopped
+    user: "1000:1000" # el archivo de credenciales solo lo puede leer su dueño
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared.yml:/etc/cloudflared/config.yml:ro
+      - ${TUNNEL_CREDENTIALS:-./tunnel-credentials.json}:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      - prelo
 
 volumes:
   postgres_data:

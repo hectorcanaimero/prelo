@@ -1,0 +1,8 @@
+# Túnel de Cloudflare "prelo" → el contenedor prelo (perfil tunnel de docker-compose.yml).
+# Sin Cloudflare Access: Hermes (POST /posts) y el webhook de GitHub tienen que entrar; cada ruta valida su token.
+tunnel: 2bdaa51c-3a8c-4e1f-a96e-7dc8dc6131e4
+credentials-file: /etc/cloudflared/credentials.json
+ingress:
+  - hostname: prelo.knaimero.app
+    service: http://prelo:8000
+  - service: http_status:404
