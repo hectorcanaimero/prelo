@@ -27,7 +27,10 @@ def _md(texto: str) -> dict[str, Any]:
 
 def blocos(peca: Peca, repo: Repositorio, estado: str | None = None) -> list[dict[str, Any]]:
     """Mensaje de una pieza. Con `estado` reemplaza los botones por el resultado de la decision."""
-    texto = "\n\n".join(t["corpo"] for t in peca.conteudo.values() if isinstance(t, dict) and "corpo" in t)
+    if peca.canal == "instagram":  # carrusel: una entrada por lámina
+        texto = "\n\n".join(f"*{i}. {la['titulo']}*\n{la['texto']}" for i, la in enumerate(peca.conteudo["laminas"], 1))
+    else:
+        texto = "\n\n".join(t["corpo"] for t in peca.conteudo.values() if isinstance(t, dict) and "corpo" in t)
     fontes = "\n".join(f"• <{f['url']}|{f['titulo']}>" for f in repo.ler_fontes(peca.post_id)) or "_sin fuentes_"
     custos = repo.custos_por_post(peca.post_id)
     linhas = "".join(f"{ag}: ${c.usd}\n" for ag, c in custos.items())

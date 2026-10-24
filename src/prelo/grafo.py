@@ -36,6 +36,10 @@ class _Estado(EstadoPost, total=False):
 
     origem: Origem
     peca_id: str
+    # La rama instagram tiene claves propias: corre en paralelo a linkedin y dos nodos no pueden escribir la misma.
+    peca_ig_id: str
+    violacoes_ig: list[Violacao]
+    comentario_ig: str | None
     peca_blog_id: str
     url_pr: str
 
@@ -126,7 +130,7 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
         conteudo = deps.adaptar["linkedin"](
             estado["rascunho"]["es"], estado["url_blog"], estado["comentario"], post_id=estado["post_id"]
         )
-        return {"derivados": {**estado["derivados"], "linkedin": conteudo}}
+        return {"derivados": {"linkedin": conteudo}}
 
     def revisar_linkedin(estado: _Estado) -> dict:
         # Crea la pieza y notifica aquí, no en `aprovar`: al reanudar, `aprovar` se re-ejecuta desde el principio.
@@ -151,7 +155,10 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
         decisao, comentario = resposta["decisao"], resposta.get("comentario")
         atualizacao = {"decisao": decisao, "comentario": comentario}
         if decisao == "aprovado":
-            return Command(update=atualizacao, goto="agendar")
+            # Se aplica aquí y no en un nodo posterior: con la rama instagram pausada, el paso no avanzaría.
+            repo.atualizar_peca(estado["peca_id"], status="aprovada", decisao="aprovado", comentario=comentario)
+            repo.atualizar_post(estado["post_id"], estado="aprovado")
+            return Command(update=atualizacao, goto=END)
         if decisao == "editar":
             # La pieza vieja queda reemplazada por la que saldrá del adaptador con el comentario.
             repo.atualizar_peca(estado["peca_id"], status="descartada", decisao="editar", comentario=comentario)
@@ -162,10 +169,43 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
             return Command(update=atualizacao, goto=END)
         raise ValueError(f"decisao desconocida: {decisao!r}")
 
-    def agendar(estado: _Estado) -> dict:
-        repo.atualizar_peca(estado["peca_id"], status="aprovada", decisao="aprovado", comentario=estado["comentario"])
-        repo.atualizar_post(estado["post_id"], estado="aprovado")
-        return {}
+    def adaptar_carrossel(estado: _Estado) -> dict:
+        conteudo = deps.adaptar["instagram"](
+            estado["rascunho"]["es"], estado["url_blog"], estado["comentario_ig"], post_id=estado["post_id"]
+        )
+        return {"derivados": {"instagram": conteudo}}
+
+    def revisar_carrossel(estado: _Estado) -> dict:
+        # Como `revisar_linkedin`; la marca se aplica al texto de todas las láminas (no al prompt de imagen).
+        conteudo = estado["derivados"]["instagram"]
+        violacoes = deps.revisar(_texto(conteudo["laminas"]), estado["fontes"])
+        peca = Peca(
+            id=str(uuid.uuid4()),
+            post_id=estado["post_id"],
+            canal="instagram",
+            conteudo=conteudo,
+            violacoes=violacoes,
+            status="pendente",
+        )
+        repo.criar_peca(peca)
+        deps.notificar(peca)
+        return {"violacoes_ig": violacoes, "peca_ig_id": peca.id}
+
+    def aprovar_carrossel(estado: _Estado) -> Command:
+        resposta = interrupt({"peca_id": estado["peca_ig_id"], "violacoes": estado["violacoes_ig"]})
+        decisao, comentario = resposta["decisao"], resposta.get("comentario")
+        atualizacao = {"comentario_ig": comentario}
+        if decisao == "aprovado":
+            repo.atualizar_peca(estado["peca_ig_id"], status="aprovada", decisao="aprovado", comentario=comentario)
+            return Command(update=atualizacao, goto=END)
+        if decisao == "editar":
+            repo.atualizar_peca(estado["peca_ig_id"], status="descartada", decisao="editar", comentario=comentario)
+            return Command(update=atualizacao, goto="adaptar_carrossel")
+        if decisao == "descartar":
+            # Solo la pieza: el post sigue vivo mientras linkedin esté en juego.
+            repo.atualizar_peca(estado["peca_ig_id"], status="descartada", decisao="descartar", comentario=comentario)
+            return Command(update=atualizacao, goto=END)
+        raise ValueError(f"decisao desconocida: {decisao!r}")
 
     g = StateGraph(_Estado)
     g.add_node("investigar", investigar)
@@ -176,8 +216,14 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     g.add_node("esperar_deploy", esperar_deploy)
     g.add_node("adaptar_linkedin", adaptar_linkedin)
     g.add_node("revisar_linkedin", revisar_linkedin)
-    g.add_node("aprovar", aprovar, destinations=("agendar", "adaptar_linkedin", END))
-    g.add_node("agendar", agendar)
+    g.add_node("aprovar", aprovar, destinations=("adaptar_linkedin", END))
+    if "instagram" in deps.adaptar:
+        g.add_node("adaptar_carrossel", adaptar_carrossel)
+        g.add_node("revisar_carrossel", revisar_carrossel)
+        g.add_node("aprovar_carrossel", aprovar_carrossel, destinations=("adaptar_carrossel", END))
+        g.add_edge("esperar_deploy", "adaptar_carrossel")
+        g.add_edge("adaptar_carrossel", "revisar_carrossel")
+        g.add_edge("revisar_carrossel", "aprovar_carrossel")
     g.add_edge(START, "investigar")
     g.add_edge("investigar", "redigir")
     g.add_edge("redigir", "revisar")
@@ -186,7 +232,6 @@ def construir(deps: Dependencias, checkpointer: BaseCheckpointSaver | None):
     g.add_edge("esperar_deploy", "adaptar_linkedin")
     g.add_edge("adaptar_linkedin", "revisar_linkedin")
     g.add_edge("revisar_linkedin", "aprovar")
-    g.add_edge("agendar", END)
     return g.compile(checkpointer=checkpointer)
 
 
@@ -209,15 +254,31 @@ def iniciar(grafo, tema: str, origem: Origem) -> str:
         "decisao": None,
         "comentario": None,
         "url_blog": None,
+        "comentario_ig": None,
     }
     grafo.invoke(estado, config=_config(post_id))
     return post_id
 
 
 def retomar(
-    grafo, post_id: str, decisao: Decisao | None = None, comentario: str | None = None, *, url_blog: str | None = None
+    grafo,
+    post_id: str,
+    decisao: Decisao | None = None,
+    comentario: str | None = None,
+    *,
+    url_blog: str | None = None,
+    peca_id: str | None = None,
 ) -> None:
     """Reanuda el post pausado: `aprovar` (Slack) o `pr_blog` (webhook) con `decisao`; `esperar_deploy`
-    (`deploy_blog`) solo con `url_blog`."""
-    resume = {"decisao": decisao, "comentario": comentario, "url_blog": url_blog}
-    grafo.invoke(Command(resume=resume), config=_config(post_id))
+    (`deploy_blog`) solo con `url_blog`. Con varias aprobaciones pendientes (linkedin e instagram), `peca_id`
+    elige la que se decide."""
+    resume: Any = {"decisao": decisao, "comentario": comentario, "url_blog": url_blog}
+    config = _config(post_id)
+    if peca_id:
+        pendentes = [
+            i for t in grafo.get_state(config).tasks for i in t.interrupts if i.value.get("peca_id") == peca_id
+        ]
+        if not pendentes:
+            raise ValueError(f"la pieza {peca_id} no espera una decisión")
+        resume = {pendentes[0].id: resume}
+    grafo.invoke(Command(resume=resume), config=config)

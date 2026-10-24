@@ -7,9 +7,13 @@ el estado del nodo actual del `StateGraph`.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
 
 from prelo.interfaces import Decisao, Fonte, Texto, Violacao
+
+
+def _unir(a: dict, b: dict) -> dict:
+    return {**a, **b}
 
 
 class EstadoPost(TypedDict):
@@ -21,7 +25,8 @@ class EstadoPost(TypedDict):
     # Idiomas de la pieza madre: "es" en F1, "es" | "pt" | "en" desde F2.
     rascunho: dict[str, Texto]
     # canal -> contenido del canal (shape libre por canal).
-    derivados: dict[str, dict[str, Any]]
+    # Con reducer: linkedin e instagram corren en paralelo y cada uno escribe su canal.
+    derivados: Annotated[dict[str, dict[str, Any]], _unir]
     violacoes: list[Violacao]
     tentativas: int
     decisao: Decisao | None
