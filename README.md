@@ -72,6 +72,7 @@ curl -X POST http://prelo:8000/posts \
 | `DATABASE_URL` | Postgres (datos y checkpoints del grafo) |
 | `ANTHROPIC_API_KEY` | LLM |
 | `TAVILY_API_KEY` | Búsqueda de fuentes |
+| `FAL_KEY`, `FAL_MODELO_IMAGEN`, `FAL_USD_POR_IMAGEN` | Fondo del carrusel con cualquier modelo de imagen de FAL (por defecto `fal-ai/flux/schnell`) y su precio por imagen |
 | `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_CANAL` | App de Slack y canal de aprobación |
 | `LINKEDIN_TOKEN`, `LINKEDIN_AUTHOR_URN` | Publicar en LinkedIn |
 | `LINKEDIN_TOKEN_EXPIRES_AT` | Fecha ISO de caducidad del token; Prelo avisa en Slack 7 días antes |
