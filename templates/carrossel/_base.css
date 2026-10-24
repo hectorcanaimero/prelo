@@ -1,0 +1,6 @@
+*{margin:0;box-sizing:border-box}
+body{width:1080px;height:1350px;font-family:sans-serif;background:#111 center/cover;color:#fff;padding:90px;display:flex;flex-direction:column;justify-content:center;gap:40px}
+h1{font-size:84px;line-height:1.1}
+p{font-size:46px;line-height:1.4}
+.n{position:absolute;top:50px;right:70px;font-size:36px;opacity:.7}
+a{font-size:42px;color:#7cf}
