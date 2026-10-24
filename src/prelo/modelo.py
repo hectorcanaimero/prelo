@@ -35,11 +35,16 @@ class ModeloAnthropic:
 
     def gerar(self, prompt: str, *, agente: str, post_id: str) -> str:
         modelo = self._tabla.get(agente, MODELO_BARATO)
-        resp = self._anthropic.messages.create(
-            model=modelo,
-            max_tokens=self._max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        try:
+            resp = self._anthropic.messages.create(
+                model=modelo,
+                max_tokens=self._max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"fallo la llamada a Anthropic: agente={agente} post_id={post_id} modelo={modelo}: {type(e).__name__}"
+            ) from e
         texto = "".join(b.text for b in resp.content if hasattr(b, "text"))
         tin, tout = resp.usage.input_tokens, resp.usage.output_tokens
         usd = calcular_usd(modelo, tin, tout)

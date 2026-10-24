@@ -12,5 +12,8 @@ PRECIOS: dict[str, tuple[Decimal, Decimal]] = {
 
 
 def calcular_usd(modelo: str, tokens_entrada: int, tokens_saida: int) -> Decimal:
-    pin, pout = PRECIOS[modelo]
+    try:
+        pin, pout = PRECIOS[modelo]
+    except KeyError:
+        raise ValueError(f"modelo sin precio en PRECIOS: {modelo!r}") from None
     return (Decimal(tokens_entrada) * pin + Decimal(tokens_saida) * pout) / Decimal(1_000_000)

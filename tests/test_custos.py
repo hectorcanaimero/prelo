@@ -3,7 +3,9 @@ from datetime import datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
-from prelo.custos import PRECIOS
+import pytest
+
+from prelo.custos import PRECIOS, calcular_usd
 from prelo.modelo import ModeloAnthropic
 
 KEY = "sk-ant-super-secret"
@@ -63,6 +65,24 @@ def test_registra_costo_con_tokens_y_usd_de_la_tabla():
     assert c.usd == (Decimal(1000) * pin + Decimal(200) * pout) / Decimal(1_000_000)
     assert c.modelo == a.llamadas[0]["model"]
     assert isinstance(c.criado_em, datetime)
+
+
+def test_modelo_sin_precio_da_error_con_contexto():
+    with pytest.raises(ValueError, match="modelo-x"):
+        calcular_usd("modelo-x", 1, 1)
+
+
+def test_error_de_la_api_lleva_agente_y_post_id():
+    m, a, _, repo = _modelo()
+
+    def boom(**kw):
+        raise ConnectionError("red caida")
+
+    a.create = boom
+    with pytest.raises(RuntimeError, match=r"agente=redator post_id=9") as ei:
+        m.gerar("p", agente="redator", post_id="9")
+    assert isinstance(ei.value.__cause__, ConnectionError)
+    assert repo.custos == []
 
 
 def test_traza_lleva_post_id_agente_y_no_la_api_key():
