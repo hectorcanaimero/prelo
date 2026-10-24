@@ -80,7 +80,7 @@ Done when: these tests pass in `tests/test_imagens.py`, con clientes falsos — 
 prohibición de texto aunque el prompt de entrada no la tenga; se registra una fila en `custos` con agente `imagem`;
 `subir` devuelve una URL pública con el nombre dado; un error del cliente de imágenes levanta un error legible.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 2h
 - **Reason**: Dos clientes de SDK acotados.
 - **Dependencies**: F3.1.T1
@@ -120,7 +120,7 @@ Done when: these tests pass in `tests/test_instagram.py`, con `respx` — 3 imá
 `CAROUSEL` con sus ids; se espera al estado `FINISHED` antes de publicar; devuelve permalink e `id_externo`; un
 contenedor en `ERROR` levanta un error sin el token.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: API de varios pasos con espera de estado.
 - **Dependencies**: F3.1.T1

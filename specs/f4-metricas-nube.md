@@ -59,7 +59,7 @@ Done when: these tests pass in `tests/test_metricas.py`, con `respx` — LinkedI
 la lista de comentarios con autor y texto; Instagram igual; un 500 en una publicación no impide guardar las
 demás; ningún error contiene un token.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Dos clientes HTTP con paginación de comentarios.
 - **Dependencies**: F4.1.T1
@@ -124,7 +124,7 @@ Done when: these tests pass in `tests/test_app.py` — la app registra el worker
 `/prelo sugerir` usa `sugestoes.sugerir`. Además `actionlint` pasa sobre `deploy.yml` y el workflow solo corre tras
 CI y evals verdes.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Workflow de deploy con OIDC y cableado final.
 - **Dependencies**: F4.2.T1, F4.3.T1, F4.4.T1

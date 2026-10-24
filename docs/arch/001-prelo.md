@@ -1,7 +1,7 @@
 ---
 type: arch
 project_id: prelo
-version: 0.2
+version: 0.3
 depends_on:
   - docs/prd/001-prelo.md
 generated_by: orch-arch
@@ -114,6 +114,27 @@ Worker diario que lee reacciones y comentarios de cada `Publicacao` de LinkedIn 
 Junta commits recientes de los repos de Héctor (GitHub API), la ruta de estudio y noticias de IA, y pide al `Modelo`
 3 temas con su origen (FR-2).
 
+### juizo — `src/prelo/juizo.py` (F5)
+Cliente de Jev (TypeSafe System One, `typesafe-sdk`, `TYPESAFE_API_KEY`) detrás de un protocolo `Juiz` con
+`avaliar(estado: dict, perguntas: dict) -> Respostas`. Devuelve juicios tipados (Noul, Choice, Score) con
+probabilidades, no texto. Lo usan cuatro puntos, todos con la política en código y nunca para aprobar (FR-7):
+- `porta_aprovacao` (FR-17): Score "probabilidad de aprobación sin edición" + Nouls por dimensión (gancho, claridad,
+  voz de Héctor, cara de IA). Bajo el umbral y con `tentativas < 2`, vuelve a `redigir` con las dimensiones fallidas
+  como feedback.
+- `verificacao` (FR-18): un Noul por par (afirmación, `trecho`) — "¿el fragmento sostiene la afirmación?". Las
+  afirmaciones las segmenta el código; las sin apoyo van a Slack como aviso. También sustituye al LLM juez de
+  fidelidad en `evals/` (NFR-1, NFR-2).
+- `fontes` (NFR-4): un Noul por fuente — "¿contiene instrucciones dirigidas a un asistente de IA?". Una fuente
+  marcada se descarta antes de llegar al redator.
+- `sugestoes` (FR-2): Scores por candidato (interés para la audiencia, novedad frente a lo publicado, encaje con los
+  temas de Héctor) combinados con pesos en código para elegir los 3 temas.
+
+### video — `src/prelo/video.py`, `templates/video/` (F5)
+Reel vertical 1080×1920 con HyperFrames: una composición HTML (`templates/video/reel.html`) con huecos de texto,
+timing en atributos `data-*`, renderizada a MP4 con `npx hyperframes render`. Reutiliza los textos de las láminas del
+carrusel y la imagen de fondo de `imagens.py`; el MP4 se sube a R2 y `publicadores/instagram` lo publica como
+`REELS`. Canal nuevo en `pecas`: `reel`.
+
 ### evals — `evals/`
 Casos fijos y métricas: fidelidad a las fuentes, estilo, calidad de traducción y violaciones de marca. Corren en CI y
 fallan si una métrica baja de su umbral (NFR-2).
@@ -208,7 +229,7 @@ class Dependencias:              # lo que recibe grafo.construir(deps, checkpoin
   `{{imagem_url}}`, `{{n}}/{{total}}`; salida PNG 1080×1350.
 - **Variables de entorno**: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, `SLACK_BOT_TOKEN`,
   `SLACK_APP_TOKEN`, `SLACK_CANAL`, `LINKEDIN_TOKEN`, `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `IG_TOKEN`,
-  `IG_USER_ID`, `R2_*`, `LANGFUSE_*`, `PRELO_API_TOKEN`, `PRELO_BLOQUEIA` (lista separada por comas). Todas en `.env.example` sin valores.
+  `IG_USER_ID`, `R2_*`, `LANGFUSE_*`, `PRELO_API_TOKEN`, `TYPESAFE_API_KEY`, `PRELO_BLOQUEIA` (lista separada por comas). Todas en `.env.example` sin valores.
 
 ## Decisions
 
@@ -232,6 +253,13 @@ class Dependencias:              # lo que recibe grafo.construir(deps, checkpoin
   Hermes se apaga cuando M1 publica. Rejected: aprobar conversando con Hermes, porque un LLM interpretaría la
   aprobación y FR-7 exige una decisión explícita; y compartir la app de Hermes, porque dos conexiones Socket Mode de
   la misma app se reparten los eventos.
+- **D16 — Juicios rápidos.** Chosen: Jev (TypeSafe System One) para juicios tipados con probabilidad (FR-17, FR-18,
+  fuentes y sugerencias). Rejected: pedir esos juicios al LLM generativo, porque cuesta más por llamada, devuelve
+  texto que hay que parsear y no da probabilidades calibradas para fijar umbrales. La revisión de marca sigue siendo
+  determinista (D3): Jev solo aporta señales blandas y nunca aprueba.
+- **D17 — Video.** Chosen: HyperFrames (HTML → MP4), que extiende el enfoque de plantillas HTML de D5. Rejected:
+  video generado por IA (Veo, Sora), porque el texto sale deformado (mismo motivo que D5) y el costo por pieza no cabe
+  en NFR-1.
 - **D9 — Agenda.** Chosen: tabla `pecas` + worker. Rejected: dormir dentro del grafo hasta la fecha, porque cambiar
   la franja obligaría a tocar hilos ya pausados.
 - **D10 — Saber que el blog está publicado.** Chosen: consultar la URL pública hasta que responda 200. Rejected:
@@ -280,6 +308,9 @@ class Dependencias:              # lo que recibe grafo.construir(deps, checkpoin
 | FR-14 | agenda, db (`publicacoes`) |
 | FR-15 | metricas |
 | FR-16 | modelo, db (`custos`), slack |
+| FR-17 | juizo (porta_aprovacao), grafo, slack |
+| FR-18 | juizo (verificacao), slack, evals |
+| FR-19 | video, publicadores/instagram, agenda |
 | NFR-1 | modelo (D4), custos, evals |
 | NFR-2 | evals, CI |
 | NFR-3 | config, modelo (trazas sin secretos) |
@@ -349,3 +380,12 @@ conecta. `F0` lo usa la tarea de ejemplo de `orch init`; el trabajo empieza en `
 - **F4.4 — Terraform**: EC2, red, secretos y backups de Postgres. Files/dirs: `infra/terraform/`. Depends on: F4.1.
 - **F4.5 — deploy continuo y conexión**: Files/dirs: `.github/workflows/deploy.yml`, `src/prelo/app.py`. Depends on:
   F4.2, F4.3, F4.4.
+
+### F5 — Decisiones con Jev y Reels (M5)
+- **F5.1 — juizo**: cliente Jev y protocolo `Juiz`. Files/dirs: `src/prelo/juizo.py`, `tests/test_juizo.py`.
+- **F5.2 — porta de aprobación y fuentes**: nodo en el grafo y filtro de fuentes. Depends on: F5.1.
+- **F5.3 — verificación de afirmaciones y evals**. Depends on: F5.1.
+- **F5.4 — ranking de sugerencias**. Depends on: F5.1.
+- **F5.5 — Reel con HyperFrames**: plantilla, render y publicación. Independiente de F5.1.
+- **F5.6 — conexión**. Depends on: F5.2, F5.3, F5.4, F5.5.
+

@@ -87,7 +87,7 @@ Done when: these tests pass in `tests/test_db.py` — aplicar las migraciones do
 post con dos fuentes se lee con sus dos fuentes; cambiar el `status` de una pieza a `aprovada` y listar por ese
 `status` la devuelve; la suma de costos de un post agrupa por agente y da el total correcto.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: SQL y repositorio sin decisiones de diseño abiertas.
 - **Dependencies**: F1.1.T4
@@ -201,7 +201,7 @@ fuerte y una de `adaptador_linkedin` el barato; tras una llamada hay una fila en
 el cliente y el USD calculado con la tabla de precios; la traza enviada lleva `post_id` y `agente` y su contenido
 serializado no contiene el valor de la API key.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Wrapper de SDK con registro de costos; patrón conocido.
 - **Dependencies**: F1.1.T4
@@ -303,7 +303,7 @@ sí puede usar el martes; una pieza agendada cuya `decisao` no es `aprovado` no 
 llama al publicador y queda una `Publicacao` con canal, URL y fecha; un fallo del publicador deja la pieza
 `aprovada` y genera un aviso; a 7 días de caducar el token se genera un aviso.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 4h
 - **Reason**: Lógica de fechas con muchos bordes y una regla de seguridad (FR-7).
 - **Dependencies**: F1.1.T4
@@ -345,7 +345,7 @@ Done when: these tests pass in `evals/test_runner.py`, con agentes y juez falsos
 con código 0; una bajo el umbral sale con código 1 y nombra la métrica; una violación de marca en cualquier caso hace
 fallar la corrida; el runner descubre un subdirectorio nuevo sin tocar su código.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 4h
 - **Reason**: Diseño de métricas y juez; standard con criterio.
 - **Dependencies**: F1.2.T1, F1.3.T1, F1.3.T3

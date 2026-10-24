@@ -1,7 +1,7 @@
 ---
 type: prd
 project_id: prelo
-version: 0.2
+version: 0.3
 generated_by: orch-prd
 generated_at: 2026-10-23
 title: Prelo
@@ -88,6 +88,16 @@ canal.
 - **FR-16** — El costo de cada post es visible. *Acceptance:* para cada post se ven los tokens y el costo en USD por
   agente y en total.
 
+- **FR-17** — Antes de pedir aprobación, Prelo estima si Héctor aprobaría la pieza sin editarla y, si la estimación es
+  baja, la reescribe dentro del mismo límite de 2 intentos de FR-6. *Acceptance:* cada pieza pendiente en Slack muestra
+  la probabilidad estimada, y el porcentaje de aprobadas sin edición se puede comparar contra esa probabilidad.
+- **FR-18** — Cada afirmación del texto que cita una fuente se verifica contra el fragmento de esa fuente. *Acceptance:*
+  las afirmaciones sin apoyo aparecen marcadas en Slack junto al borrador; no bloquean por sí solas (FR-6 sigue siendo
+  la única regla que bloquea).
+- **FR-19** — Prelo genera un video corto vertical (Reel) a partir del post, con texto de plantilla y movimiento, y lo
+  publica en Instagram tras aprobarlo en Slack. *Acceptance:* el Reel aprobado aparece en la cuenta de Instagram, dura
+  entre 15 y 60 s y todo su texto sale de plantillas.
+
 ## Non-functional requirements
 
 - **NFR-1** — Costo medio por post, contando los tres canales, bajo USD 0,50.
@@ -130,4 +140,5 @@ canal.
   FR-14, FR-16
 - M2 — El blog como pieza madre (es/pt/en por PR) y LinkedIn enlazado: FR-5, FR-10, FR-11
 - M3 — Carrusel de Instagram: FR-12
+- M5 — Decisiones con Jev y Reels: FR-17, FR-18, FR-19
 - M4 — Bucle de métricas, sugerencia de temas y Prelo en la nube: FR-2, FR-15, NFR-7

@@ -80,7 +80,7 @@ Done when: these tests pass in `tests/test_mdx.py` — se generan tres archivos,
 cada frontmatter tiene todos los campos obligatorios del schema y ninguno desconocido; un título con comillas y dos
 puntos produce YAML válido; el slug es el mismo en los tres idiomas; el cuerpo sale tal cual.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Hay que leer un repo externo y fijar un contrato; requiere criterio.
 - **Dependencies**: F2.1.T1
@@ -102,7 +102,7 @@ Done when: these tests pass in `tests/test_github.py`, con `respx` — se crea l
 por defecto; el commit contiene los tres archivos con su contenido; el PR se abre contra la rama por defecto y la
 función devuelve su URL; con la rama ya existente no se abre un segundo PR; un 403 levanta un error sin el token.
 
-- **Model**: muse/muse-wonder-1.0
+- **Model**: claude/claude-sonnet-5-5
 - **Estimate**: 3h
 - **Reason**: Cliente de la API de Git data con varios pasos.
 - **Dependencies**: F2.2.T2

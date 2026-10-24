@@ -61,7 +61,7 @@
       "phase": 1,
       "title": "Base de datos: migración inicial y repositorio",
       "description": "Implementa *db* según *Data model* de docs/arch/001-prelo.md: conexión a Postgres con `psycopg`, un aplicador de\nmigraciones SQL numeradas (`src/prelo/db/migracoes/NNN_*.sql`, registra las aplicadas en una tabla propia y es\nidempotente) y `001_inicial.sql` con las tablas `posts`, `fontes`, `pecas`, `publicacoes` y `custos`. La tabla\n`metricas` NO va aquí: llega en F4.1.\n\nImplementa en `src/prelo/db/repositorio.py` el protocolo `Repositorio` de `src/prelo/interfaces.py` (F1.1.T4), con las\ndataclasses `Post`, `Peca`, `Publicacao` y `Custo` que define ese archivo, y los métodos que usan los demás componentes: crear y leer posts, guardar fuentes, crear/actualizar piezas\n(`status`, `decisao`, `comentario`, `agendada_para`), listar piezas por `status` y canal, registrar publicaciones y\ncostos, y sumar costos por post y agente. No cambies las firmas de `interfaces.py`: si falta algo, añádelo solo en la\nimplementación.\n\n`tests/conftest.py` define la fixture `pg_url`: lee `TEST_DATABASE_URL`, salta el test si no existe, crea un schema\nlimpio por test y aplica las migraciones.\n\nDone when: these tests pass in `tests/test_db.py` — aplicar las migraciones dos veces no falla ni duplica nada; un\npost con dos fuentes se lee con sus dos fuentes; cambiar el `status` de una pieza a `aprovada` y listar por ese\n`status` la devuelve; la suma de costos de un post agrupa por agente y da el total correcto.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "SQL y repositorio sin decisiones de diseño abiertas.",
       "status": "backlog",
       "dependencies": [
@@ -126,7 +126,7 @@
       "phase": 1,
       "title": "Modelo real, costos y Langfuse",
       "description": "Implementa el `Modelo` de *Interfaces* en `src/prelo/modelo.py` sobre el SDK de Anthropic, y `src/prelo/custos.py`.\nCada llamada a `gerar(prompt, agente=, post_id=)` elige el modelo por agente según D4 (fuerte para `redator`, barato\npara el resto; tabla configurable en el módulo), registra tokens de entrada/salida y USD en `custos` vía el\n`Repositorio` y manda la traza a Langfuse etiquetada con `post_id` y `agente` (FR-16). Las trazas y los logs nunca\nincluyen tokens ni API keys (NFR-3). El cliente de Anthropic y el de Langfuse se inyectan en el constructor.\n\nDone when: these tests pass in `tests/test_custos.py`, con clientes falsos — una llamada de `redator` usa el modelo\nfuerte y una de `adaptador_linkedin` el barato; tras una llamada hay una fila en `custos` con los tokens que devolvió\nel cliente y el USD calculado con la tabla de precios; la traza enviada lleva `post_id` y `agente` y su contenido\nserializado no contiene el valor de la API key.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Wrapper de SDK con registro de costos; patrón conocido.",
       "status": "backlog",
       "dependencies": [
@@ -206,7 +206,7 @@
       "phase": 1,
       "title": "Worker de agenda",
       "description": "Implementa `src/prelo/agenda.py` según *agenda* y D9 de docs/arch/001-prelo.md. Una función pura\n`proximo_hueco(canal, ocupados, agora) -\u003e datetime` calcula el siguiente hueco de martes a jueves con máximo una\npieza por día y canal (FR-13), con la hora de publicación configurable y zona horaria `America/Sao_Paulo`. `tick()`\n(lo que corre cada minuto) toma las piezas `aprovada`, les asigna hueco, las pasa a `agendada` y avisa en Slack la\nfecha; cuando llega la hora, vuelve a comprobar `decisao = aprovado` (FR-7), llama al `Publicador` del canal,\nregistra la `Publicacao` (FR-14) y pasa la pieza a `publicada`. Si el publicador falla, la pieza vuelve a\n`aprovada` y se avisa en Slack. Avisa también 7 días antes de que caduque el token de LinkedIn (riesgo del ARCH).\nRecibe publicadores, repositorio, aviso y reloj inyectados.\n\nDone when: these tests pass in `tests/test_agenda.py` — aprobada un lunes se agenda el martes; aprobada un jueves\ndespués de la hora se agenda el martes siguiente; con el martes ocupado en ese canal va al miércoles, pero otro canal\nsí puede usar el martes; una pieza agendada cuya `decisao` no es `aprovado` no se publica; al llegar la hora se\nllama al publicador y queda una `Publicacao` con canal, URL y fecha; un fallo del publicador deja la pieza\n`aprovada` y genera un aviso; a 7 días de caducar el token se genera un aviso.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Lógica de fechas con muchos bordes y una regla de seguridad (FR-7).",
       "status": "backlog",
       "dependencies": [
@@ -244,7 +244,7 @@
       "phase": 1,
       "title": "Evals de estilo, fidelidad y marca en CI",
       "description": "Crea `evals/` según *evals* y NFR-2 de docs/arch/001-prelo.md: un runner (`evals/run.py`) que descubre cada\nsubdirectorio de `evals/` como un conjunto de casos fijos (tema + fuentes + salida esperada o criterios), ejecuta el\nagente correspondiente y calcula métricas con umbral: fidelidad a las fuentes (LLM juez barato), estilo (LLM juez con\nrúbrica) y violaciones de marca (`revisar`, umbral 0). El runner sale con código distinto de 0 si una métrica queda\nbajo su umbral. Incluye al menos 5 casos para `redator` + `adaptador_linkedin`. `.github/workflows/evals.yml` lo\ncorre en cada PR con los secretos del repo. El runner deja el costo de la corrida en la salida.\n\nDone when: these tests pass in `evals/test_runner.py`, con agentes y juez falsos — una métrica sobre el umbral sale\ncon código 0; una bajo el umbral sale con código 1 y nombra la métrica; una violación de marca en cualquier caso hace\nfallar la corrida; el runner descubre un subdirectorio nuevo sin tocar su código.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Diseño de métricas y juez; standard con criterio.",
       "status": "backlog",
       "dependencies": [
@@ -337,7 +337,7 @@
       "phase": 2,
       "title": "mdx.py con test de contrato contra site-guria",
       "description": "Lee el schema de la colección `blog` de `site-guria` (`src/content/config.ts` o equivalente, en\ngithub.com/hectorcanaimero/site-guria; usa `gh` con `GITHUB_TOKEN`) y fija en `src/prelo/mdx.py` las rutas por\nidioma y el frontmatter exacto (NFR-8). `gerar_mdx(post_id, textos, data) -\u003e dict[str, str]` devuelve ruta →\ncontenido para los tres idiomas. Guarda una copia del schema leído en `tests/fixtures/site_guria_blog_schema.ts` y\nescribe un test de contrato que compara los campos del frontmatter con ese schema, para que un cambio del sitio\nrompa el test (riesgo del ARCH).\n\nDone when: these tests pass in `tests/test_mdx.py` — se generan tres archivos, uno por idioma, en las rutas fijadas;\ncada frontmatter tiene todos los campos obligatorios del schema y ninguno desconocido; un título con comillas y dos\npuntos produce YAML válido; el slug es el mismo en los tres idiomas; el cuerpo sale tal cual.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Hay que leer un repo externo y fijar un contrato; requiere criterio.",
       "status": "backlog",
       "dependencies": [
@@ -357,7 +357,7 @@
       "phase": 2,
       "title": "Publicador de GitHub: rama y PR",
       "description": "Implementa `src/prelo/publicadores/github.py` con la API de GitHub vía `httpx` y la función `abrir_pr(post_id,\ntextos)` de `Dependencias`: crea la rama `prelo/\u003cpost_id\u003e` en `site-guria`, sube los tres MDX de `mdx.gerar_mdx` en\nun commit y abre el PR con el título del post y el link a las fuentes en la descripción. Devuelve la URL del PR. Si la\nrama ya existe, actualiza el PR en vez de duplicarlo. Ningún error ni log contiene `GITHUB_TOKEN`.\n\nDone when: these tests pass in `tests/test_github.py`, con `respx` — se crea la rama `prelo/\u003cpost_id\u003e` desde la rama\npor defecto; el commit contiene los tres archivos con su contenido; el PR se abre contra la rama por defecto y la\nfunción devuelve su URL; con la rama ya existente no se abre un segundo PR; un 403 levanta un error sin el token.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Cliente de la API de Git data con varios pasos.",
       "status": "backlog",
       "dependencies": [
@@ -498,7 +498,7 @@
       "phase": 3,
       "title": "Imagen de fondo y subida a R2",
       "description": "Implementa `src/prelo/imagens.py` con `gerar_imagem(prompt) -\u003e bytes` sobre `gpt-image-1` (D14): añade siempre al\nprompt la instrucción de no incluir texto, letras ni números (FR-12), y registra el costo en `custos` con agente\n`imagem`. Implementa `src/prelo/r2.py` con `subir(nome, dados, tipo) -\u003e url` sobre R2 (S3 compatible, `boto3`,\nvariables `R2_*`). Los clientes se inyectan.\n\nDone when: these tests pass in `tests/test_imagens.py`, con clientes falsos — el prompt enviado contiene la\nprohibición de texto aunque el prompt de entrada no la tenga; se registra una fila en `custos` con agente `imagem`;\n`subir` devuelve una URL pública con el nombre dado; un error del cliente de imágenes levanta un error legible.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Dos clientes de SDK acotados.",
       "status": "backlog",
       "dependencies": [
@@ -537,7 +537,7 @@
       "phase": 3,
       "title": "Publicador de Instagram",
       "description": "Implementa `src/prelo/publicadores/instagram.py`: un `Publicador` con `canal = \"instagram\"` que publica un carrusel\ncon la Instagram Graph API (`IG_TOKEN`, `IG_USER_ID`) vía `httpx`: crea un contenedor por imagen (URL de R2), el\ncontenedor `CAROUSEL` con el pie de foto, espera a que esté `FINISHED` y lo publica. Devuelve una `Publicacao` con\npermalink e `id_externo`. Ningún error ni log contiene el token.\n\nDone when: these tests pass in `tests/test_instagram.py`, con `respx` — 3 imágenes generan 3 contenedores hijos y uno\n`CAROUSEL` con sus ids; se espera al estado `FINISHED` antes de publicar; devuelve permalink e `id_externo`; un\ncontenedor en `ERROR` levanta un error sin el token.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "API de varios pasos con espera de estado.",
       "status": "backlog",
       "dependencies": [
@@ -602,7 +602,7 @@
       "phase": 4,
       "title": "Lectores de LinkedIn e Instagram",
       "description": "Implementa en `src/prelo/metricas.py` los `Leitor` reales: LinkedIn (reacciones y comentarios del post por\n`id_externo`; las impresiones no, ver *Non-goals* del PRD) e Instagram (`like_count`, `comments_count` y los\ncomentarios del media). Vía `httpx`, con los tokens de `config`. Un fallo de un lector no detiene la colecta de las\ndemás publicaciones y se avisa en Slack.\n\nDone when: these tests pass in `tests/test_metricas.py`, con `respx` — LinkedIn devuelve el número de reacciones y\nla lista de comentarios con autor y texto; Instagram igual; un 500 en una publicación no impide guardar las\ndemás; ningún error contiene un token.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Dos clientes HTTP con paginación de comentarios.",
       "status": "backlog",
       "dependencies": [
@@ -658,7 +658,7 @@
       "phase": 4,
       "title": "Deploy continuo y conexión final",
       "description": "Crea `.github/workflows/deploy.yml`: al hacer push a `main` con CI y evals verdes, construye la imagen, la publica\nen GHCR y despliega en la EC2 por SSM Run Command (`docker compose pull \u0026\u0026 docker compose up -d`), sin claves SSH\nen el repo (OIDC hacia un rol de AWS). En `app.py`, registra los lectores de métricas en un worker diario y pasa\n`sugestoes.sugerir` a la app de Slack.\n\nDone when: these tests pass in `tests/test_app.py` — la app registra el worker de métricas con período diario;\n`/prelo sugerir` usa `sugestoes.sugerir`. Además `actionlint` pasa sobre `deploy.yml` y el workflow solo corre tras\nCI y evals verdes.",
-      "model": "muse/muse-wonder-1.0",
+      "model": "claude/claude-sonnet-5-5",
       "reason": "Workflow de deploy con OIDC y cableado final.",
       "status": "backlog",
       "dependencies": [
