@@ -1,0 +1,21 @@
+# Reglas públicas de marca. Empleadores y clientes NO van aquí: PRELO_BLOQUEIA (NFR-5).
+
+frases = [
+  "en el panorama actual",
+  "en el mundo actual",
+  "sumérgete en",
+  "desbloquea el poder de",
+  "cambia las reglas del juego",
+  "game changer",
+  "revolucionar",
+  "en un mundo cada vez más",
+  "delve into",
+  "in today's fast-paced world",
+  "unlock the power of",
+]
+
+# Cifras (con %, separadores decimales) y años/fechas; el primer patrón gana al solaparse.
+padroes = [
+  '\d+(?:[.,]\d+)*\s?%',
+  '\d+(?:[.,]\d+)*',
+]
