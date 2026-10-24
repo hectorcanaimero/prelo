@@ -59,6 +59,15 @@ def _limpar(texto: str) -> str:
     return texto.replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _sin_cercas(crudo: str) -> str:
+    """Quita la cerca de código Markdown (```json ... ```) con la que los modelos suelen envolver el JSON."""
+    texto = crudo.strip()
+    if texto.startswith("```"):
+        texto = texto.split("\n", 1)[1] if "\n" in texto else ""
+        texto = texto.rsplit("```", 1)[0]
+    return texto
+
+
 def sugerir(
     *,
     modelo: Modelo,
@@ -84,11 +93,11 @@ def sugerir(
     prompt = PROMPT.format(n=N_CANDIDATOS, publicados=json.dumps(recientes, ensure_ascii=False), datos=datos)
     crudo = modelo.gerar(prompt, agente=AGENTE_NOME, post_id=post_id)
     try:
-        candidatos = json.loads(crudo)
+        candidatos = json.loads(_sin_cercas(crudo))
     except json.JSONDecodeError as e:
         raise ValueError(f"respuesta del modelo no es JSON válido: {crudo[:200]!r}") from e
     if not isinstance(candidatos, list):
-        raise ValueError(f"respuesta del modelo no es una lista: {crudo[:200]!r}")
+        raise ValueError(f"respuesta del modelo no es una lista: {crudo[:200]!r}")  # noqa: TRY004 - un solo tipo de error para quien llama
 
     out: list[dict[str, str]] = []
     for c in candidatos:

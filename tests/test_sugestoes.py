@@ -121,7 +121,7 @@ class ModeloCrudo(Modelo):
         return self.temas
 
 
-@pytest.mark.parametrize("crudo", ["```json\n[]\n```", "no es json", '{"tema": "A"}'])
+@pytest.mark.parametrize("crudo", ["no es json", '{"tema": "A"}', "```json\n{}\n```"])
 def test_respuesta_no_json_o_no_lista_da_valueerror_con_contexto(crudo):
     with pytest.raises(ValueError, match="respuesta del modelo"):
         _run(ModeloCrudo(crudo))
@@ -135,3 +135,11 @@ def test_entradas_malformadas_se_descartan():
 def test_menos_de_tres_validos_falla():
     with pytest.raises(ValueError):
         _run(Modelo(CINCO[:2]))
+
+
+def test_json_envuelto_en_cerca_markdown_se_acepta():
+    class ModeloConCerca(Modelo):
+        def gerar(self, prompt, *, agente, post_id):
+            return "```json\n" + json.dumps(self.temas) + "\n```"
+
+    assert len(_run(ModeloConCerca(CINCO))) == 3
