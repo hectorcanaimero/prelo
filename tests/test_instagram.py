@@ -14,7 +14,7 @@ from prelo.interfaces import Peca, Publicador
 from prelo.publicadores.instagram import ErroPublicacaoInstagram, PublicadorInstagram
 
 TOKEN = "ig-tok-secreto-999"
-BASE = "https://graph.facebook.com/v21.0"
+BASE = "https://graph.instagram.com/v21.0"
 URLS = [f"https://r2.example/lamina-{i}.png" for i in range(3)]
 
 

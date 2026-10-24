@@ -74,7 +74,7 @@ class LeitorLinkedin:
 
 class LeitorInstagram:
     canal = "instagram"
-    URL = "https://graph.facebook.com/v21.0"
+    URL = "https://graph.instagram.com/v21.0"
 
     def __init__(self, token: SecretStr | str, client: httpx.Client | None = None) -> None:
         self._http = _Http(token, client)

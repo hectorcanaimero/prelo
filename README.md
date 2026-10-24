@@ -80,4 +80,9 @@ curl -X POST http://prelo:8000/posts \
 | `PRELO_BLOQUEIA` | Empleadores y clientes que nunca deben aparecer, separados por comas |
 
 Reservadas para F2/F3: `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_REPO`, `IG_TOKEN`, `IG_USER_ID`, `R2_*`.
+
+Instagram usa la *Instagram API with Instagram Login* (`graph.instagram.com`): cuenta Business o Creator, sin página
+de Facebook. En la app de Meta → Instagram → *API setup with Instagram business login*, agrega la cuenta y pulsa
+**Generate token**; ahí mismo aparece el ID de la cuenta (`IG_USER_ID`). Permisos: `instagram_business_basic`,
+`instagram_business_content_publish` e `instagram_business_manage_comments`. El token dura 60 días.
 Los tokens viven solo en `Settings` (`src/prelo/config.py`); nunca se escriben en logs ni en el repo.
