@@ -3,7 +3,13 @@
     "allow": [
       "mcp__orch",
       "Bash(scripts/task-finish.sh:*)",
-      "Bash(scripts/task-block.sh:*)"
+      "Bash(scripts/task-block.sh:*)",
+      "Bash(uv sync:*)", 
+      "Bash(uv lock:*)", 
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)", 
+      "Bash(uv run python:*)", 
+      "Bash(docker compose config:*)"
     ]
   }
 }
