@@ -11,6 +11,7 @@ from decimal import Decimal
 from typing import Any
 
 from prelo.interfaces import Peca, Repositorio
+from prelo.porta import CHAVE as PROBABILIDADE
 
 MODAL = "prelo_editar_modal"
 ESTADOS = {"aprovado": "✅ Aprobada", "editar": "✏️ Enviada a reescribir", "descartar": "🗑️ Descartada"}
@@ -36,6 +37,8 @@ def blocos(peca: Peca, repo: Repositorio, estado: str | None = None) -> list[dic
     linhas = "".join(f"{ag}: ${c.usd}\n" for ag, c in custos.items())
     total = sum((c.usd for c in custos.values()), Decimal(0))
     out = [_md(f"*Pieza pendiente ({peca.canal})*\n{texto}"), _md(f"*Fuentes*\n{fontes}")]
+    if (prob := peca.conteudo.get(PROBABILIDADE)) is not None:  # FR-17
+        out.append(_md(f"*Probabilidad de aprobarla sin editar*\n{prob:.0%}"))
     if peca.violacoes:
         viol = "\n".join(f"• [{v['regra']}] «{v['trecho']}»: {v['detalhe']}" for v in peca.violacoes)
         out.append(_md(f"*Violaciones*\n{viol}"))
