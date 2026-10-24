@@ -5,11 +5,14 @@ description = "Mesa editorial de agentes: una idea → blog (es/pt/en), LinkedIn
 requires-python = ">=3.12"
 dependencies = [
     "anthropic",
+    "boto3",
     "fastapi",
     "httpx",
     "langfuse",
     "langgraph",
     "langgraph-checkpoint-postgres",
+    "openai",
+    "playwright",
     "psycopg[binary,pool]",
     "pydantic-settings",
     "slack-bolt",

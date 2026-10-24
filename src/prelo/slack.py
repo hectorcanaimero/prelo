@@ -27,7 +27,10 @@ def _md(texto: str) -> dict[str, Any]:
 
 def blocos(peca: Peca, repo: Repositorio, estado: str | None = None) -> list[dict[str, Any]]:
     """Mensaje de una pieza. Con `estado` reemplaza los botones por el resultado de la decision."""
-    texto = "\n\n".join(t["corpo"] for t in peca.conteudo.values() if isinstance(t, dict) and "corpo" in t)
+    if peca.canal == "instagram":  # carrusel: una entrada por lámina
+        texto = "\n\n".join(f"*{i}. {la['titulo']}*\n{la['texto']}" for i, la in enumerate(peca.conteudo["laminas"], 1))
+    else:
+        texto = "\n\n".join(t["corpo"] for t in peca.conteudo.values() if isinstance(t, dict) and "corpo" in t)
     fontes = "\n".join(f"• <{f['url']}|{f['titulo']}>" for f in repo.ler_fontes(peca.post_id)) or "_sin fuentes_"
     custos = repo.custos_por_post(peca.post_id)
     linhas = "".join(f"{ag}: ${c.usd}\n" for ag, c in custos.items())
@@ -58,14 +61,29 @@ def blocos(peca: Peca, repo: Repositorio, estado: str | None = None) -> list[dic
     return out
 
 
+def _blocos_sugestoes(temas: list[dict[str, str]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for t in temas:
+        out.append(_md(f"*{t['tema']}*\n_{t['origem']}_ · <{t['link']}|link>"))
+        boton = {
+            "type": "button",
+            "action_id": "prelo_escolher",
+            "value": t["tema"],
+            "text": {"type": "plain_text", "text": "Escribir este"},
+        }
+        out.append({"type": "actions", "elements": [boton]})
+    return out
+
+
 def registrar(
     app: Any,
     *,
-    iniciar: Callable[[str], str],
+    iniciar: Callable[..., str],
     retomar: Callable[..., None],
     repo: Repositorio,
     canal: str,
     cliente: Any,
+    sugerir: Callable[[], list[dict[str, str]]] | None = None,
 ) -> Callable[[Peca], None]:
     """Registra los handlers en `app` y devuelve `notificar(peca)`."""
 
@@ -76,8 +94,16 @@ def registrar(
     def comando(ack, command, respond):
         ack()
         tema = (command.get("text") or "").strip()
+        if tema == "sugerir" and sugerir:
+            try:
+                temas = sugerir()[:3]
+            except Exception as e:  # noqa: BLE001
+                respond(f"No pude sugerir temas: {e}")
+                return
+            respond(text="Temas sugeridos", blocks=_blocos_sugestoes(temas))
+            return
         if not tema:
-            respond("Uso: /prelo <tema>")
+            respond("Uso: /prelo <tema> — o /prelo sugerir para recibir 3 temas")
             return
         try:
             iniciar(tema)
@@ -86,11 +112,20 @@ def registrar(
             return
         respond(f"Recibí el tema: {tema}")
 
+    @app.action("prelo_escolher")
+    def escolher(ack, action, respond):
+        ack()
+        tema = action["value"]
+        try:
+            iniciar(tema, origem="sugestao")
+        except Exception as e:  # noqa: BLE001
+            respond(f"No pude iniciar el post: {e}")
+            return
+        respond(f"Recibí el tema: {tema}")
+
     def decidir(decisao, meta, client, comentario=None):
-        if comentario is None:
-            retomar(meta["post_id"], decisao)
-        else:
-            retomar(meta["post_id"], decisao, comentario)
+        # `peca_id` elige la pausa: linkedin e instagram pueden esperar aprobación a la vez en el mismo post.
+        retomar(meta["post_id"], decisao, comentario, peca_id=meta["peca_id"])
         peca = repo.ler_peca(meta["peca_id"])
         client.chat_update(
             channel=meta["channel"], ts=meta["ts"], text=ESTADOS[decisao], blocks=blocos(peca, repo, ESTADOS[decisao])

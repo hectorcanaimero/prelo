@@ -203,6 +203,3 @@ def test_criar_investigador_produce_callable_para_dependencias() -> None:
 
     with pytest.raises(SemFontesError):
         fn_investigar("   ", post_id="post-vacio")
-
-
-

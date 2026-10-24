@@ -73,8 +73,8 @@ def ctx():
         chamadas.append(("iniciar", tema))
         return "post1"
 
-    def retomar(*a):
-        chamadas.append(("retomar", *a))
+    def retomar(*a, **kw):
+        chamadas.append(("retomar", *a, kw))
 
     notificar = slack.registrar(app, iniciar=iniciar, retomar=retomar, repo=RepoFalso(), canal="C1", cliente=cliente)
     return SimpleNamespace(app=app, c=cliente, calls=chamadas, notificar=notificar)
@@ -131,13 +131,13 @@ def accion(ctx, nome):
 
 def test_aprobar(ctx):
     accion(ctx, "prelo_aprovar")
-    assert ctx.calls == [("retomar", "post1", "aprovado")]
+    assert ctx.calls == [("retomar", "post1", "aprovado", None, {"peca_id": "peca1"})]
     assert ctx.c.atualizados
 
 
 def test_descartar(ctx):
     accion(ctx, "prelo_descartar")
-    assert ctx.calls == [("retomar", "post1", "descartar")]
+    assert ctx.calls == [("retomar", "post1", "descartar", None, {"peca_id": "peca1"})]
     assert ctx.c.atualizados
 
 
@@ -151,5 +151,5 @@ def test_editar_abre_modal_y_envia(ctx):
         "state": {"values": {"comentario": {"comentario": {"value": "más corto"}}}},
     }
     ctx.app.h[modal["callback_id"]](ack=lambda: None, view=view, client=ctx.c)
-    assert ctx.calls == [("retomar", "post1", "editar", "más corto")]
+    assert ctx.calls == [("retomar", "post1", "editar", "más corto", {"peca_id": "peca1"})]
     assert ctx.c.atualizados

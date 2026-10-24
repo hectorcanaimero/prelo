@@ -105,6 +105,28 @@ class RepositorioPg:
             ),
         )
 
+    def listar_publicacoes(self, *, canais: tuple[Canal, ...]) -> list[Publicacao]:
+        rows = self._q(
+            "SELECT id::text, peca_id::text, canal, url, publicada_em, id_externo FROM publicacoes"
+            " WHERE canal = ANY(%s) ORDER BY publicada_em",
+            (list(canais),),
+        )
+        return [Publicacao(**r) for r in rows]
+
+    def salvar_metrica(self, publicacao_id: str, *, reacoes: int, comentarios: list) -> None:
+        self._q(
+            "INSERT INTO metricas (publicacao_id, reacoes, comentarios) VALUES (%s, %s, %s)",
+            (publicacao_id, reacoes, Jsonb(comentarios)),
+        )
+
+    def ler_ultima_metrica(self, publicacao_id: str) -> dict | None:
+        rows = self._q(
+            "SELECT publicacao_id::text, coletada_em, reacoes, comentarios FROM metricas"
+            " WHERE publicacao_id = %s ORDER BY coletada_em DESC, id DESC LIMIT 1",
+            (publicacao_id,),
+        )
+        return rows[0] if rows else None
+
     def registrar_custo(self, custo: Custo) -> None:
         self._q(
             "INSERT INTO custos (post_id, agente, modelo, tokens_entrada, tokens_saida, usd, criado_em)"

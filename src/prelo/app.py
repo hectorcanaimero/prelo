@@ -102,8 +102,8 @@ def main() -> None:
     g: dict[str, Any] = {}
     app_slack = App(token=settings.SLACK_BOT_TOKEN.get_secret_value())
 
-    def iniciar(tema: str) -> str:
-        return grafo.iniciar(g["grafo"], tema, "editor")
+    def iniciar(tema: str, origem: Any = "editor") -> str:
+        return grafo.iniciar(g["grafo"], tema, origem)
 
     def retomar(*args: Any, **kwargs: Any) -> None:
         grafo.retomar(g["grafo"], *args, **kwargs)
