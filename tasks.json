@@ -694,6 +694,134 @@
       ],
       "specRef": "f1-linkedin.md#F1.1.T4",
       "comments": []
+    },
+    {
+      "id": "F5.1.T1",
+      "phase": 5,
+      "title": "Cliente Jev y protocolo Juiz",
+      "description": "Implementa `src/prelo/juizo.py` según *juizo* y D16 de docs/arch/001-prelo.md: un protocolo `Juiz` con\n`avaliar(estado: dict, perguntas: dict[str, Noul | Choice | Score]) -\u003e Respostas` y su implementación sobre\n`typesafe-sdk` (`TypeSafeClient(...).system_one(state=..., questions=...)`, clave `TYPESAFE_API_KEY` desde `config`;\nañade la variable a `config.py` y a `.env.example`, y la dependencia a `pyproject.toml`/`uv.lock`). `Respostas` expone\n`noul(id) -\u003e float`, `choice(id) -\u003e str` y `score(id) -\u003e float` con nombres de pregunta propios del código. Cada\nllamada registra su costo en `custos` con agente `juizo`. Lee https://docs.typesafe.ai/llms.txt y la página del SDK\nde Python antes de escribir la integración. Un fallo de TypeSafe levanta `JuizIndisponivel`: quien llama decide\nseguir sin el juicio.\n\nDone when: these tests pass in `tests/test_juizo.py`, con un cliente falso — una pregunta Noul devuelve su\nprobabilidad por `noul(id)`; Choice y Score igual; el `state` y las `questions` enviados son los que se pasaron; un\nerror del cliente levanta `JuizIndisponivel`; se registra una fila en `custos` con agente `juizo`; el `repr` de la\nconfiguración no contiene la clave.",
+      "model": "claude/claude-sonnet-5-5",
+      "reason": "Integración de SDK nuevo con docs vivas; requiere leer bien el contrato.",
+      "status": "backlog",
+      "dependencies": [
+        "F4.5.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/juizo.py",
+        "src/prelo/config.py",
+        ".env.example",
+        "pyproject.toml",
+        "uv.lock",
+        "tests/test_juizo.py"
+      ],
+      "specRef": "f5-jev-reels.md#F5.1.T1",
+      "comments": []
+    },
+    {
+      "id": "F5.2.T1",
+      "phase": 5,
+      "title": "Porta de aprobación y filtro de fuentes",
+      "description": "Implementa `src/prelo/porta.py` con dos funciones sobre `Juiz` (*juizo* en el ARCH):\n`avaliar_peca(texto, canal, exemplos_aprovados) -\u003e Avaliacao` pregunta un Score \"probabilidad de que Héctor apruebe\nsin editar\" (niveles concretos, de \"la reescribiría entera\" a \"la publicaría tal cual\") y un Noul por dimensión\n(gancho en la primera línea, claridad, voz de Héctor, frases de cara de IA); `fonte_suspeita(fonte) -\u003e float` pregunta\nun Noul \"¿el fragmento contiene instrucciones dirigidas a un asistente de IA?\". En el grafo: tras `revisar`, si la\nprobabilidad queda bajo `PRELO_UMBRAL_APROVACAO` (por defecto 0.6) y `tentativas \u003c 2`, vuelve a `redigir` (o al\nadaptador) con las dimensiones fallidas como feedback (FR-17); la probabilidad se guarda en la pieza y `notificar` la\nmuestra. En `investigar`, una fuente con `fonte_suspeita \u003e 0.5` se descarta (NFR-4). Si Jev no está disponible, el\nflujo sigue igual que en F4.\n\nDone when: these tests pass in `tests/test_porta.py`, con un `Juiz` falso — una pieza con probabilidad 0.3 y\n`tentativas = 0` vuelve a redactarse con las dimensiones fallidas en el feedback; con `tentativas = 2` llega a\naprobación igual; con 0.8 llega a aprobación sin reescribir; la probabilidad aparece en el mensaje de Slack; una\nfuente con 0.9 de sospecha no llega al redator; con `JuizIndisponivel` el post llega a aprobación como antes; y los\ntests de grafo de F1–F3 siguen pasando.",
+      "model": "claude/claude-opus-5-5",
+      "reason": "Cambia el flujo central y su interacción con los reintentos de FR-6; diseño crítico.",
+      "status": "backlog",
+      "dependencies": [
+        "F5.1.T1"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "src/prelo/porta.py",
+        "src/prelo/grafo.py",
+        "src/prelo/slack.py",
+        "tests/test_porta.py"
+      ],
+      "specRef": "f5-jev-reels.md#F5.2.T1",
+      "comments": []
+    },
+    {
+      "id": "F5.3.T1",
+      "phase": 5,
+      "title": "Verificación de afirmaciones y evals de fidelidad con Jev",
+      "description": "Implementa `src/prelo/verificacao.py` (FR-18): el código segmenta el cuerpo en afirmaciones (frases con cifra, fecha,\nnombre propio o verbo de afirmación) y, por cada par (afirmación, `trecho` de cada fuente), pregunta a Jev un Noul\n\"¿este fragmento sostiene la afirmación?\" en una sola llamada con todas las preguntas. Una afirmación sin ningún\nfragmento sobre 0.5 queda como `sem_apoio`. Devuelve la lista para que `notificar` la muestre como aviso; no bloquea.\nCambia la métrica de fidelidad de `evals/` para usar `verificacao` en vez del LLM juez (NFR-1, NFR-2).\n\nDone when: these tests pass in `tests/test_verificacao.py`, con un `Juiz` falso — un texto con 3 afirmaciones\nproduce 3 × n_fuentes preguntas en una sola llamada; una afirmación apoyada por un fragmento no sale marcada; una sin\napoyo sale `sem_apoio`; una frase sin afirmación (una pregunta retórica) no genera preguntas; y `evals/test_runner.py`\nsigue pasando con la métrica nueva.",
+      "model": "claude/claude-sonnet-5-5",
+      "reason": "Segmentación en código y composición de preguntas; standard con buenos tests.",
+      "status": "backlog",
+      "dependencies": [
+        "F5.1.T1"
+      ],
+      "estimateHours": 3.0,
+      "files": [
+        "src/prelo/verificacao.py",
+        "evals/run.py",
+        "tests/test_verificacao.py"
+      ],
+      "specRef": "f5-jev-reels.md#F5.3.T1",
+      "comments": []
+    },
+    {
+      "id": "F5.4.T1",
+      "phase": 5,
+      "title": "Ranking de sugerencias con Scores",
+      "description": "Cambia `src/prelo/sugestoes.py` para que el `Modelo` proponga 8 candidatos y Jev los puntúe (un Score por candidato\ny dimensión: interés para la audiencia de Héctor, novedad frente a lo publicado en 30 días, encaje con sus temas),\ntodas las preguntas en una llamada; el código combina con pesos configurables y devuelve los 3 mejores con su origen\n(FR-2, composite scoring). Sin Jev, vuelve al comportamiento de F4.3.\n\nDone when: these tests pass in `tests/test_sugestoes.py`, con dobles — de 8 candidatos devuelve los 3 de mayor\npuntuación combinada; cambiar un peso cambia el orden sin volver a llamar a Jev; con `JuizIndisponivel` devuelve 3\nsugerencias como antes; cada sugerencia mantiene su `link` de origen.",
+      "model": "claude/claude-sonnet-5-5",
+      "reason": "Composición de puntuaciones en código; acotado.",
+      "status": "backlog",
+      "dependencies": [
+        "F5.1.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/sugestoes.py",
+        "tests/test_sugestoes.py"
+      ],
+      "specRef": "f5-jev-reels.md#F5.4.T1",
+      "comments": []
+    },
+    {
+      "id": "F5.5.T1",
+      "phase": 5,
+      "title": "Reel vertical con HyperFrames",
+      "description": "Crea `templates/video/reel.html`, una composición HyperFrames 1080×1920 de 15–60 s (portada, una escena por lámina\ndel carrusel con texto animado, cierre con el link al blog) con huecos para los textos y la imagen de fondo; todo el\ntexto sale de la plantilla (FR-19, D17). `src/prelo/video.py` rellena la composición (escapando HTML), la valida con\n`npx hyperframes check` y la renderiza con `npx hyperframes render` a MP4, y la sube a R2. Fija la versión de\n`hyperframes` en `templates/video/package.json`. Añade el canal `reel` (pieza con los mismos textos del carrusel) y,\nen `publicadores/instagram.py`, la publicación como `REELS` (contenedor de video, espera a `FINISHED`, publicar).\nInstala Node y la versión fijada de HyperFrames en el `Dockerfile`.\n\nDone when: these tests pass in `tests/test_video.py` — con 4 láminas la composición tiene 6 escenas y una duración\nentre 15 y 60 s; un texto con `\u003cscript\u003e` sale escapado; la llamada a render usa la versión fijada y 1080×1920\n(subproceso falso); el publicador de Instagram crea un contenedor `REELS` con la URL de R2 y espera a `FINISHED`\n(`respx`); el test de render real se salta si `npx` no está disponible.",
+      "model": "claude/claude-sonnet-5-5",
+      "reason": "Framework de video nuevo más publicación; requiere leer su contrato.",
+      "status": "backlog",
+      "dependencies": [
+        "F4.5.T1"
+      ],
+      "estimateHours": 4.0,
+      "files": [
+        "templates/video/",
+        "src/prelo/video.py",
+        "src/prelo/publicadores/instagram.py",
+        "Dockerfile",
+        "tests/test_video.py"
+      ],
+      "specRef": "f5-jev-reels.md#F5.5.T1",
+      "comments": []
+    },
+    {
+      "id": "F5.6.T1",
+      "phase": 5,
+      "title": "Conexión de Jev y del Reel",
+      "description": "En `app.py`, construye el `Juiz` real (solo si existe `TYPESAFE_API_KEY`) y pásalo a la porta, a la verificación, al\ninvestigador y a las sugerencias; añade el adaptador del canal `reel` y su publicador. Actualiza `README.md` con las\nvariables nuevas y cómo desactivar Jev.\n\nDone when: these tests pass in `tests/test_app.py` — sin `TYPESAFE_API_KEY` la app arranca y el flujo es el de F4;\ncon la clave, `montar_dependencias` incluye el `Juiz` en porta, verificación y sugerencias; el canal `reel` está\nregistrado en la agenda.",
+      "model": "claude/claude-sonnet-5-5",
+      "reason": "Cableado.",
+      "status": "backlog",
+      "dependencies": [
+        "F5.2.T1",
+        "F5.3.T1",
+        "F5.4.T1",
+        "F5.5.T1"
+      ],
+      "estimateHours": 2.0,
+      "files": [
+        "src/prelo/app.py",
+        "tests/test_app.py",
+        "README.md"
+      ],
+      "specRef": "f5-jev-reels.md#F5.6.T1",
+      "comments": []
     }
   ]
 }
