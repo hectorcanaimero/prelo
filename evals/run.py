@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from prelo.marca import Regras, revisar
+from prelo.verificacao import segmentar, verificar
 
 RAIZ = Path(__file__).resolve().parent
 if str(RAIZ) not in sys.path:
@@ -130,6 +131,19 @@ def _juiz(modelo: Any) -> Juiz:
     return julgar
 
 
+def _fidelidade_jev(jev: Any, resto: Juiz) -> Juiz:
+    """Fidelidad = fracción de afirmaciones con apoyo según `verificacao` (NFR-1); otras métricas, al juez LLM."""
+
+    def julgar(metrica: str, texto: str, caso: dict[str, Any], rubrica: str) -> float:
+        if metrica != "fidelidade":
+            return resto(metrica, texto, caso, rubrica)
+        total = len(segmentar(texto))
+        sem = verificar(texto, caso["fontes"], jev, post_id=f"eval-{caso['id']}")
+        return 1.0 - len(sem) / total if total else 1.0
+
+    return julgar
+
+
 def _real() -> tuple[dict[str, Agente], Juiz, Regras, Callable[[], Decimal]]:
     from anthropic import Anthropic
     from traducao import ModeloLocalDeterminista
@@ -159,7 +173,15 @@ def _real() -> tuple[dict[str, Agente], Juiz, Regras, Callable[[], Decimal]]:
         "linkedin": _agente_linkedin(modelo),
         "traducao": _agente_traducao(modelo),
     }
-    return agentes, _juiz(modelo), carregar_regras(s), lambda: repo.total
+    juiz = _juiz(modelo)
+    key = s.TYPESAFE_API_KEY.get_secret_value().strip()
+    if key:
+        from typesafe_sdk import TypeSafeClient
+
+        from prelo.juizo import JuizTypeSafe
+
+        juiz = _fidelidade_jev(JuizTypeSafe(lambda: TypeSafeClient(api_key=key), repo), juiz)  # type: ignore[arg-type]
+    return agentes, juiz, carregar_regras(s), lambda: repo.total
 
 
 if __name__ == "__main__":
