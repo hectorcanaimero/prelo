@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 from prelo.juizo import Respostas
 from prelo.verificacao import segmentar, verificar
 
@@ -42,6 +45,7 @@ def test_pregunta_retorica_no_genera_preguntas():
 
 
 def test_metrica_de_fidelidad_de_evals_usa_verificacao_y_deja_las_demas_al_juez():
+    sys.path.insert(0, str(Path(__file__).parents[1] / "evals"))
     import run
 
     caso = {"id": "c1", "fontes": FONTES}
