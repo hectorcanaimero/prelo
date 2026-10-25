@@ -12,6 +12,7 @@ frases = [
   "delve into",
   "in today's fast-paced world",
   "unlock the power of",
+  "traça", # en pt-BR se dice "trace"
 ]
 
 # Cifras (con %, separadores decimales) y años/fechas; el primer patrón gana al solaparse.
@@ -19,3 +20,9 @@ padroes = [
   '\d+(?:[.,]\d+)*\s?%',
   '\d+(?:[.,]\d+)*',
 ]
+
+# Formato del post de LinkedIn: el prompt del adaptador las pide y la revisión las verifica (reescribe hasta 2 veces).
+[linkedin]
+max_palavras = 110 # sin contar hashtags ni links
+max_emojis = 2
+hashtags = 3

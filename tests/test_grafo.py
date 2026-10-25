@@ -150,6 +150,19 @@ def test_borrador_que_siempre_viola_se_reescribe_dos_veces():
     assert peca.violacoes == [VIOLACAO]
 
 
+def test_linkedin_con_formato_roto_se_reescribe_hasta_cumplir():
+    d = Dobles()
+    largo = {"regra": "formato", "trecho": "250 palabras", "detalhe": "máximo 110"}
+    deps = replace(d.deps(), formato=lambda texto, canal: [largo] if texto.endswith("v1") else [])
+    g = grafo.construir(deps, InMemorySaver())
+
+    post_id = grafo.iniciar(g, "agentes", "editor")
+
+    assert d.adaptar_feedbacks[0] is None and "250 palabras" in d.adaptar_feedbacks[1]
+    [peca] = _pecas(d.repo, post_id)
+    assert peca.conteudo["pt"]["corpo"] == "linkedin v2" and peca.violacoes == []
+
+
 def test_editar_llama_al_adaptador_con_el_comentario_y_vuelve_a_pausar():
     d = Dobles()
     g = grafo.construir(d.deps(), InMemorySaver())

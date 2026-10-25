@@ -198,10 +198,11 @@ def construir(
         post_id = estado["post_id"]
         conteudo = estado["derivados"]["linkedin"]
         probabilidade, feedback = avaliar(_texto(conteudo), "linkedin", post_id)
+        violacoes = deps.revisar(_texto(conteudo), estado["fontes"]) + deps.formato(_texto(conteudo), "linkedin")
         tentativas = estado.get("tentativas_li", 0)
+        feedback = _juntar(feedback, _feedback(violacoes) if violacoes else None)
         if feedback and tentativas < MAX_TENTATIVAS:
             return Command(goto="adaptar_linkedin", update={"feedback_li": feedback, "tentativas_li": tentativas + 1})
-        violacoes = deps.revisar(_texto(conteudo), estado["fontes"])
         peca = Peca(
             id=str(uuid.uuid4()),
             post_id=post_id,

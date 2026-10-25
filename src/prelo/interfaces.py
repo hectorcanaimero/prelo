@@ -281,6 +281,8 @@ class Dependencias:
     traduzir: Callable[..., dict[str, Texto]] | None = None
     # (post_id, textos) -> URL del PR en site-guria
     abrir_pr: Callable[[str, dict[str, Texto]], str] | None = None
+    # (texto, canal) -> violaciones de formato del canal (palabras, emojis, hashtags); se reescribe hasta 2 veces
+    formato: Callable[[str, Canal], list[Violacao]] = lambda texto, canal: []
 
 
 __all__ = [

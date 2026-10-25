@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     ROUTER_API_KEY: SecretToken = SecretStr("")
     # Cada agente pide el combo de 9router con su mismo nombre; aquí solo los que se llaman distinto.
     PRELO_MODELOS: MapaModelos = Field(default_factory=dict)
+    # Precio "equivalente API" de los modelos que 9router no cobra por token: "modelo=entrada/salida" por millón, en USD.
+    PRELO_PRECIOS: str = ""
     JEV_MODELOS: str = "openrouter/typesafe/jev-1.13"  # modelos de Jev en 9router, en orden, separados por comas
     FAL_KEY: SecretToken = SecretStr("")
     FAL_MODELO_IMAGEN: str = "fal-ai/flux/schnell"
