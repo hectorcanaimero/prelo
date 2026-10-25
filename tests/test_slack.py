@@ -148,7 +148,8 @@ def test_pieza_sin_violaciones(ctx):
     assert [b["action_id"] for b in bs] == ["prelo_aprovar", "prelo_editar", "prelo_descartar"]
     assert all(json.loads(b["value"]) == {"post_id": "post1", "peca_id": "peca1"} for b in bs)
     t = texto_total(msg)
-    assert "https://ex.com/a" in t and "Corpo do post" in t
+    assert "Corpo do post" in t and "https://ex.com/a" not in t and "Fuentes" not in t
+    assert msg["unfurl_links"] is False and msg["unfurl_media"] is False
     assert "redator" in t and "0.0400" in t
 
 

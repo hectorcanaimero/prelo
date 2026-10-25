@@ -23,6 +23,6 @@ padroes = [
 
 # Formato del post de LinkedIn: el prompt del adaptador las pide y la revisión las verifica (reescribe hasta 2 veces).
 [linkedin]
-max_palavras = 110 # sin contar hashtags ni links
+max_palavras = 120 # sin contar hashtags ni links (sus posts reales van de 94 a 121)
 max_emojis = 2
 hashtags = 3
