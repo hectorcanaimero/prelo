@@ -82,7 +82,7 @@ def criar_agente(modelo_o_tradutor: Any) -> Callable[[dict[str, Any]], str]:
 
 
 class ModeloLocalDeterminista:
-    """Doble determinista usado cuando `ANTHROPIC_API_KEY` no está definido en el entorno local."""
+    """Doble determinista usado cuando `ROUTER_API_KEY` no está definido en el entorno local."""
 
     def gerar(self, prompt: str, *, agente: str, post_id: str) -> str:
         if agente == "juiz":

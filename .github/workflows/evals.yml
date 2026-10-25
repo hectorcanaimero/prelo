@@ -7,7 +7,9 @@ jobs:
   evals:
     runs-on: ubuntu-latest
     env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ROUTER_BASE_URL: ${{ secrets.ROUTER_BASE_URL }}
+      ROUTER_API_KEY: ${{ secrets.ROUTER_API_KEY }}
+      PRELO_MODELOS: ${{ vars.PRELO_MODELOS }}
       PRELO_BLOQUEIA: ${{ secrets.PRELO_BLOQUEIA }}
     steps:
       - uses: actions/checkout@v4
@@ -16,8 +18,8 @@ jobs:
       - run: uv run pytest -q evals/test_runner.py
       - name: Evals contra el LLM real
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::warning::ANTHROPIC_API_KEY vacío: se omiten las evals contra el LLM real"
+          if [ -z "$ROUTER_API_KEY" ]; then
+            echo "::warning::ROUTER_API_KEY vacío: se omiten las evals contra el LLM real"
             exit 0
           fi
           uv run python evals/run.py

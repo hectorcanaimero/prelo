@@ -5,24 +5,32 @@ from types import SimpleNamespace
 
 import pytest
 
+from prelo.config import Settings
 from prelo.custos import PRECIOS, calcular_usd
-from prelo.modelo import ModeloAnthropic
+from prelo.modelo import ModeloRouter
 
-KEY = "sk-ant-super-secret"
+KEY = "sk-router-super-secret"
 
 
-class FakeAnthropic:
+def _chunk(texto=None, usage=None, model="claude-sonnet-5-5"):
+    choices = [SimpleNamespace(delta=SimpleNamespace(content=texto))] if texto is not None else []
+    return SimpleNamespace(model=model, choices=choices, usage=usage)
+
+
+class FakeOpenAI:
+    """Imita `client.chat.completions.create(stream=True)`: devuelve chunks y al final el uso."""
+
     api_key = KEY
 
-    def __init__(self):
-        self.llamadas = []
-        self.messages = self
+    def __init__(self, model="claude-sonnet-5-5"):
+        self.llamadas, self.model = [], model
+        self.chat = SimpleNamespace(completions=self)
 
     def create(self, **kw):
         self.llamadas.append(kw)
-        return SimpleNamespace(
-            content=[SimpleNamespace(text="hola")],
-            usage=SimpleNamespace(input_tokens=1000, output_tokens=200),
+        uso = SimpleNamespace(prompt_tokens=1000, completion_tokens=200)
+        return iter(
+            [_chunk("ho", model=self.model), _chunk("la", model=self.model), _chunk(usage=uso, model=self.model)]
         )
 
 
@@ -42,34 +50,38 @@ class FakeRepo:
         self.custos.append(custo)
 
 
-def _modelo():
-    a, lf, repo = FakeAnthropic(), FakeLangfuse(), FakeRepo()
-    return ModeloAnthropic(a, lf, repo), a, lf, repo
+def _modelo(**kw):
+    a, lf, repo = FakeOpenAI(), FakeLangfuse(), FakeRepo()
+    return ModeloRouter(a, lf, repo, **kw), a, lf, repo
 
 
-def test_redator_usa_modelo_fuerte_y_adaptador_el_barato():
-    m, a, _, _ = _modelo()
+def test_cada_agente_pide_su_combo_salvo_los_renombrados():
+    m, a, _, _ = _modelo(modelo_por_agente={"redator": "redactor"})
     m.gerar("p", agente="redator", post_id="1")
     m.gerar("p", agente="adaptador_linkedin", post_id="1")
-    fuerte, barato = (c["model"] for c in a.llamadas)
-    assert fuerte != barato
-    assert PRECIOS[fuerte][0] > PRECIOS[barato][0]
+    assert [c["model"] for c in a.llamadas] == ["redactor", "adaptador_linkedin"]
+    assert all(c["stream"] is True and c["stream_options"] == {"include_usage": True} for c in a.llamadas)
 
 
-def test_registra_costo_con_tokens_y_usd_de_la_tabla():
-    m, a, _, repo = _modelo()
+def test_junta_el_stream_y_registra_costo_con_el_modelo_que_respondio():
+    m, _, _, repo = _modelo()
     assert m.gerar("p", agente="redator", post_id="7") == "hola"
     (c,) = repo.custos
-    pin, pout = PRECIOS[a.llamadas[0]["model"]]
-    assert (c.post_id, c.agente, c.tokens_entrada, c.tokens_saida) == ("7", "redator", 1000, 200)
+    pin, pout = PRECIOS["claude-sonnet-5-5"]
+    assert (c.post_id, c.agente, c.modelo, c.tokens_entrada, c.tokens_saida) == (
+        "7",
+        "redator",
+        "claude-sonnet-5-5",
+        1000,
+        200,
+    )
     assert c.usd == (Decimal(1000) * pin + Decimal(200) * pout) / Decimal(1_000_000)
-    assert c.modelo == a.llamadas[0]["model"]
     assert isinstance(c.criado_em, datetime)
 
 
-def test_modelo_sin_precio_da_error_con_contexto():
-    with pytest.raises(ValueError, match="modelo-x"):
-        calcular_usd("modelo-x", 1, 1)
+def test_modelo_sin_precio_cuenta_cero_y_con_prefijo_usa_la_tabla():
+    assert calcular_usd("gemini-3.8-flash-n", 1000, 1000) == Decimal(0)
+    assert calcular_usd("cc/claude-sonnet-5-5", 1_000_000, 0) == PRECIOS["claude-sonnet-5-5"][0]
 
 
 def test_error_de_la_api_lleva_agente_y_post_id():
@@ -91,3 +103,8 @@ def test_traza_lleva_post_id_agente_y_no_la_api_key():
     (t,) = lf.trazas
     assert t["metadata"]["post_id"] == "7" and t["metadata"]["agente"] == "redator"
     assert KEY not in json.dumps(t, default=str)
+
+
+def test_prelo_modelos_se_lee_como_mapa(monkeypatch):
+    monkeypatch.setenv("PRELO_MODELOS", "redator=redactor, tradutor = traductor,mal")
+    assert Settings(_env_file=None).PRELO_MODELOS == {"redator": "redactor", "tradutor": "traductor"}

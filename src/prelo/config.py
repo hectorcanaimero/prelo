@@ -19,6 +19,16 @@ def _parse_bloqueia(value: object) -> list[str]:
     return []
 
 
+def _parse_mapa(value: object) -> dict[str, str]:
+    """`"redator=redactor,tradutor=traductor"` -> {"redator": "redactor", "tradutor": "traductor"}."""
+    if isinstance(value, dict):
+        return {str(k): str(v) for k, v in value.items()}
+    if not isinstance(value, str):
+        return {}
+    pares = (item.split("=", 1) for item in value.split(",") if "=" in item)
+    return {k.strip(): v.strip() for k, v in pares if k.strip() and v.strip()}
+
+
 def _coerce_secret(value: object) -> SecretStr | str:
     if value is None:
         return SecretStr("")
@@ -29,6 +39,7 @@ def _coerce_secret(value: object) -> SecretStr | str:
 
 SecretToken = Annotated[SecretStr, BeforeValidator(_coerce_secret)]
 ListaBloqueia = Annotated[list[str], NoDecode, BeforeValidator(_parse_bloqueia)]
+MapaModelos = Annotated[dict[str, str], NoDecode, BeforeValidator(_parse_mapa)]
 
 
 class Settings(BaseSettings):
@@ -43,8 +54,10 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = ""
 
-    ANTHROPIC_API_KEY: SecretToken = SecretStr("")
-    ANTHROPIC_BASE_URL: str = ""  # 9router: su clave va en ANTHROPIC_API_KEY
+    ROUTER_BASE_URL: str = ""  # 9router (compatible con OpenAI), p. ej. https://routers.usebot.chat
+    ROUTER_API_KEY: SecretToken = SecretStr("")
+    # Cada agente pide el combo de 9router con su mismo nombre; aquí solo los que se llaman distinto.
+    PRELO_MODELOS: MapaModelos = Field(default_factory=dict)
     JEV_MODELOS: str = "openrouter/typesafe/jev-1.13"  # modelos de Jev en 9router, en orden, separados por comas
     FAL_KEY: SecretToken = SecretStr("")
     FAL_MODELO_IMAGEN: str = "fal-ai/flux/schnell"

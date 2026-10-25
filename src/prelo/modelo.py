@@ -1,4 +1,4 @@
-"""`Modelo` real sobre el SDK de Anthropic, con costos en `custos` y trazas en Langfuse."""
+"""`Modelo` real sobre 9router (SDK de OpenAI, NFR-9), con costos en `custos` y trazas en Langfuse."""
 
 from __future__ import annotations
 
@@ -11,46 +11,55 @@ from prelo.interfaces import Custo, Repositorio
 
 log = logging.getLogger(__name__)
 
-# D4: fuerte para el redactor, barato para el resto. Configurable.
-MODELO_FUERTE = "claude-sonnet-5-5"
-MODELO_BARATO = "claude-haiku-5-5"
-MODELO_POR_AGENTE: dict[str, str] = {"redator": MODELO_FUERTE}
 
+class ModeloRouter:
+    """Cada agente pide a 9router el modelo (combo) con su mismo nombre, salvo que `modelo_por_agente` diga otro.
 
-class ModeloAnthropic:
+    `openai` es un cliente `OpenAI(base_url=<9router>/v1, api_key=...)`. Se pide siempre en streaming: 9router responde
+    con SSE en casi todos los combos aunque no se pida.
+    """
+
     def __init__(
         self,
-        anthropic: Any,
+        openai: Any,
         langfuse: Any,
         repo: Repositorio,
         *,
         modelo_por_agente: dict[str, str] | None = None,
         max_tokens: int = 4096,
     ) -> None:
-        self._anthropic = anthropic
+        self._openai = openai
         self._langfuse = langfuse
         self._repo = repo
-        self._tabla = MODELO_POR_AGENTE if modelo_por_agente is None else modelo_por_agente
+        self._tabla = modelo_por_agente or {}
         self._max_tokens = max_tokens
 
     def gerar(self, prompt: str, *, agente: str, post_id: str) -> str:
-        modelo = self._tabla.get(agente, MODELO_BARATO)
+        pedido = self._tabla.get(agente, agente)
+        partes: list[str] = []
+        modelo, tin, tout = pedido, 0, 0
         try:
-            resp = self._anthropic.messages.create(
-                model=modelo,
+            for ch in self._openai.chat.completions.create(
+                model=pedido,
                 max_tokens=self._max_tokens,
                 messages=[{"role": "user", "content": prompt}],
-            )
+                stream=True,
+                stream_options={"include_usage": True},
+            ):
+                modelo = ch.model or modelo
+                if ch.choices and ch.choices[0].delta.content:
+                    partes.append(ch.choices[0].delta.content)
+                if ch.usage:
+                    tin, tout = ch.usage.prompt_tokens or 0, ch.usage.completion_tokens or 0
         except Exception as e:
             raise RuntimeError(
-                f"fallo la llamada a Anthropic: agente={agente} post_id={post_id} modelo={modelo}: {type(e).__name__}"
+                f"fallo la llamada a 9router: agente={agente} post_id={post_id} modelo={pedido}: {type(e).__name__}"
             ) from e
-        texto = "".join(b.text for b in resp.content if hasattr(b, "text"))
-        tin, tout = resp.usage.input_tokens, resp.usage.output_tokens
+        texto = "".join(partes)
         usd = calcular_usd(modelo, tin, tout)
+        # `modelo` es el que respondió de verdad dentro del combo, no el nombre del combo.
         self._repo.registrar_custo(Custo(post_id, agente, modelo, tin, tout, usd, datetime.now(UTC)))
         # Solo prompt, salida, modelo y uso: nunca credenciales (NFR-3).
-        # ponytail: llamada langfuse.trace(...) duck-typed; adaptar al SDK real en app.py si difiere.
         self._langfuse.trace(
             name=agente,
             input=prompt,
@@ -59,6 +68,7 @@ class ModeloAnthropic:
             metadata={
                 "post_id": post_id,
                 "agente": agente,
+                "combo": pedido,
                 "modelo": modelo,
                 "tokens_entrada": tin,
                 "tokens_saida": tout,

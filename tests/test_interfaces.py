@@ -180,8 +180,8 @@ def test_violacao_lleva_trecho_y_regra_tipada() -> None:
 
 
 def test_importar_interfaces_no_importa_sdks_externos() -> None:
-    """`prelo.interfaces` no debe arrastrar anthropic, langgraph, langfuse, slack, httpx, psycopg, tavily."""
-    sdks = ["anthropic", "langgraph", "langfuse", "slack_bolt", "tavily", "httpx", "psycopg", "fastapi"]
+    """`prelo.interfaces` no debe arrastrar openai, langgraph, langfuse, slack, httpx, psycopg, tavily."""
+    sdks = ["openai", "langgraph", "langfuse", "slack_bolt", "tavily", "httpx", "psycopg", "fastapi"]
     code = (
         "import sys\n"
         "import prelo.interfaces\n"

@@ -35,7 +35,7 @@ def montar_dependencias(settings: Settings, clientes: dict[str, Any]) -> Depende
 
 
 class _TrazaLangfuse:
-    """Adapta el cliente Langfuse v5 a la llamada `trace(...)` que usa `ModeloAnthropic`."""
+    """Adapta el cliente Langfuse v5 a la llamada `trace(...)` que usa `ModeloRouter`."""
 
     def __init__(self, cliente: Any) -> None:
         self._c = cliente
@@ -64,11 +64,11 @@ def _bucle_agenda(agenda: Any) -> None:
 
 
 def main() -> None:
-    import anthropic
     import psycopg
     import uvicorn
     from langfuse import Langfuse
     from langgraph.checkpoint.postgres import PostgresSaver
+    from openai import OpenAI
     from psycopg.rows import dict_row
     from slack_bolt import App
     from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -80,7 +80,7 @@ def main() -> None:
     from prelo.db.conexao import conectar
     from prelo.db.migrar import aplicar_migracoes
     from prelo.db.repositorio import RepositorioPg
-    from prelo.modelo import ModeloAnthropic
+    from prelo.modelo import ModeloRouter
     from prelo.publicadores.linkedin import PublicadorLinkedin
 
     logging.basicConfig(level=logging.INFO)
@@ -94,12 +94,13 @@ def main() -> None:
         secret_key=settings.LANGFUSE_SECRET_KEY.get_secret_value(),
         host=settings.LANGFUSE_HOST,
     )
-    modelo = ModeloAnthropic(
-        anthropic.Anthropic(
-            api_key=settings.ANTHROPIC_API_KEY.get_secret_value(), base_url=settings.ANTHROPIC_BASE_URL or None
+    modelo = ModeloRouter(
+        OpenAI(
+            api_key=settings.ROUTER_API_KEY.get_secret_value(), base_url=settings.ROUTER_BASE_URL.rstrip("/") + "/v1"
         ),
         _TrazaLangfuse(langfuse),
         repo,
+        modelo_por_agente=settings.PRELO_MODELOS,
     )
 
     # El grafo necesita `notificar` (Slack) y Slack necesita iniciar/retomar (grafo): se cierra el ciclo con `g`.
