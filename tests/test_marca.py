@@ -51,6 +51,17 @@ def test_data_igual_cifra():
     assert revisar("en 2024", [_fonte("datos de 2024")], _regras()) == []
 
 
+def test_cifra_con_otro_separador_decimal_que_la_fuente():
+    assert revisar("Na pesquisa, 57,3% já tinham agentes", [_fonte("57.3% of respondents")], _regras()) == []
+    assert revisar("cayó 12 %", [_fonte("fell 12%")], _regras()) == []
+
+
+def test_numero_de_lista_no_es_cifra_pero_en_la_frase_si():
+    texto = "Pasos:\n1. Define\n  4) Mide la variación\nSon 4 pasos"
+    vs = revisar(texto, [], _regras())
+    assert [v["trecho"] for v in vs] == ["4"]
+
+
 def test_texto_limpo():
     assert revisar("Un texto sencillo.", [], _regras()) == []
 

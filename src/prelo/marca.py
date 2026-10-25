@@ -40,6 +40,17 @@ def _achar(texto: str, termo: str) -> list[str]:
     return [texto[m.start() : m.end()] for m in re.finditer(pat, _norm(texto))]
 
 
+def _cifra(s: str) -> str:
+    # "57,3%" (es/pt) y "57.3 %" (en) son la misma cifra: un solo separador decimal y sin espacio antes de "%"
+    return re.sub(r"\s+%", "%", s.replace(",", "."))
+
+
+def _item_de_lista(texto: str, m: re.Match[str]) -> bool:
+    """El "4" de "4. Mide…" al empezar una línea numera una lista; no es una cifra."""
+    antes = texto[: m.start()].rsplit("\n", 1)[-1]
+    return not antes.strip() and re.match(r"[.)]\s", texto[m.end() : m.end() + 2]) is not None
+
+
 def revisar(texto: str, fontes: list[Fonte], regras: Regras) -> list[Violacao]:
     vs: list[Violacao] = []
     for nome in regras.bloqueia:
@@ -49,13 +60,15 @@ def revisar(texto: str, fontes: list[Fonte], regras: Regras) -> list[Violacao]:
         for trecho in _achar(texto, frase):
             vs.append({"regra": "frase_ia", "trecho": trecho, "detalhe": f"frase: {frase}"})
     # ponytail: contención por subcadena; "40%" aceptaría "140%" en la fuente.
-    fuentes = " ".join(f["trecho"] for f in fontes)
+    fuentes = _cifra(" ".join(f["trecho"] for f in fontes))
     vistos: list[tuple[int, int]] = []
     for padrao in regras.padroes:
         for m in re.finditer(padrao, texto):
             if any(m.start() < e and s < m.end() for s, e in vistos):
                 continue
             vistos.append((m.start(), m.end()))
-            if m.group() not in fuentes:
+            if _item_de_lista(texto, m):
+                continue
+            if _cifra(m.group()) not in fuentes:
                 vs.append({"regra": "cifra_sem_fonte", "trecho": m.group(), "detalhe": "sin fuente"})
     return vs
