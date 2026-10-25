@@ -77,7 +77,8 @@ curl -X POST http://prelo:8000/posts \
 | Variable | Para qué |
 |----------|----------|
 | `DATABASE_URL` | Postgres (datos y checkpoints del grafo) |
-| `ANTHROPIC_API_KEY` | LLM |
+| `ROUTER_BASE_URL`, `ROUTER_API_KEY` | LLM vía 9router (SDK de OpenAI). Cada agente pide el combo con su nombre (`investigador`, `adaptador_linkedin`, …) |
+| `PRELO_MODELOS` | Solo los agentes cuyo combo se llama distinto, p. ej. `redator=redactor,tradutor=traductor` |
 | `TAVILY_API_KEY` | Búsqueda de fuentes |
 | `FAL_KEY`, `FAL_MODELO_IMAGEN`, `FAL_USD_POR_IMAGEN` | Fondo del carrusel con cualquier modelo de imagen de FAL (por defecto `fal-ai/flux/schnell`) y su precio por imagen |
 | `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_CANAL` | App de Slack y canal de aprobación |

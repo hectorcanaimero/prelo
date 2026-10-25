@@ -32,7 +32,7 @@ def test_repr_no_contiene_valor_de_slack_bot_token(monkeypatch: pytest.MonkeyPat
 
 def test_tokens_son_secret_str_y_no_salen_en_repr(monkeypatch: pytest.MonkeyPatch) -> None:
     tokens = {
-        "ANTHROPIC_API_KEY": "sk-ant-secreto",
+        "ROUTER_API_KEY": "sk-router-secreto",
         "TAVILY_API_KEY": "tvly-secreto",
         "SLACK_BOT_TOKEN": "xoxb-secreto",
         "SLACK_APP_TOKEN": "xapp-secreto",

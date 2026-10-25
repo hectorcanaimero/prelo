@@ -145,12 +145,12 @@ def _fidelidade_jev(jev: Any, resto: Juiz) -> Juiz:
 
 
 def _real() -> tuple[dict[str, Agente], Juiz, Regras, Callable[[], Decimal]]:
-    from anthropic import Anthropic
+    from openai import OpenAI
     from traducao import ModeloLocalDeterminista
 
     from prelo.config import Settings
     from prelo.marca import carregar_regras
-    from prelo.modelo import ModeloAnthropic
+    from prelo.modelo import ModeloRouter
 
     class Repo:  # solo suma el costo (Repositorio completo no hace falta aquí)
         total = Decimal(0)
@@ -163,10 +163,15 @@ def _real() -> tuple[dict[str, Agente], Juiz, Regras, Callable[[], Decimal]]:
 
     s = Settings()
     repo = Repo()
-    clave = s.ANTHROPIC_API_KEY.get_secret_value().strip()
+    clave = s.ROUTER_API_KEY.get_secret_value().strip()
     modelo: Any = (
-        ModeloAnthropic(Anthropic(api_key=clave, base_url=s.ANTHROPIC_BASE_URL or None), SinTraza(), repo)  # type: ignore[arg-type]
-        if clave
+        ModeloRouter(
+            OpenAI(api_key=clave, base_url=s.ROUTER_BASE_URL.rstrip("/") + "/v1"),
+            SinTraza(),
+            repo,
+            modelo_por_agente=s.PRELO_MODELOS,
+        )  # type: ignore[arg-type]
+        if clave and s.ROUTER_BASE_URL
         else ModeloLocalDeterminista()
     )
     agentes = {
@@ -175,13 +180,13 @@ def _real() -> tuple[dict[str, Agente], Juiz, Regras, Callable[[], Decimal]]:
     }
     juiz = _juiz(modelo)
     juizes: list[Any] = []
-    if s.ANTHROPIC_BASE_URL and clave:
+    if s.ROUTER_BASE_URL and clave:
         import httpx
 
         from prelo.juizo import JuizRouter
 
         modelos = [m.strip() for m in s.JEV_MODELOS.split(",") if m.strip()]
-        juizes.append(JuizRouter(httpx.Client(), s.ANTHROPIC_BASE_URL, clave, modelos, repo))  # type: ignore[arg-type]
+        juizes.append(JuizRouter(httpx.Client(), s.ROUTER_BASE_URL, clave, modelos, repo))  # type: ignore[arg-type]
     key = s.TYPESAFE_API_KEY.get_secret_value().strip()
     if key:
         from typesafe_sdk import TypeSafeClient

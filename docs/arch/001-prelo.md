@@ -227,7 +227,7 @@ class Dependencias:              # lo que recibe grafo.construir(deps, checkpoin
   colección `blog` en F2.1 y se fijan en `mdx.py` con un test de contrato.
 - **Plantillas de carrusel (F3)**: `templates/carrossel/<nome>.html` con los huecos `{{titulo}}`, `{{texto}}`,
   `{{imagem_url}}`, `{{n}}/{{total}}`; salida PNG 1080×1350.
-- **Variables de entorno**: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, `SLACK_BOT_TOKEN`,
+- **Variables de entorno**: `DATABASE_URL`, `ROUTER_BASE_URL`, `ROUTER_API_KEY`, `PRELO_MODELOS`, `TAVILY_API_KEY`, `SLACK_BOT_TOKEN`,
   `SLACK_APP_TOKEN`, `SLACK_CANAL`, `LINKEDIN_TOKEN`, `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `IG_TOKEN`,
   `IG_USER_ID`, `R2_*`, `LANGFUSE_*`, `PRELO_API_TOKEN`, `TYPESAFE_API_KEY`, `PRELO_BLOQUEIA` (lista separada por comas). Todas en `.env.example` sin valores.
 
