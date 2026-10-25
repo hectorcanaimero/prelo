@@ -54,7 +54,10 @@ Desarrollo local: `uv sync && uv run pytest`.
 2. **Install to Workspace** y copia el *Bot User OAuth Token* (`xoxb-…`) → `SLACK_BOT_TOKEN`.
 3. **Basic Information → App-Level Tokens**: genera uno con el scope `connections:write` (`xapp-…`) → `SLACK_APP_TOKEN`.
 4. Invita al bot al canal de aprobación (`/invite @Prelo`) y pon su ID en `SLACK_CANAL`.
-5. En Slack: `/prelo <tema>`. Más detalle en [`docs/slack.md`](docs/slack.md).
+5. En Slack: `/prelo <tema>`, o háblale: `@Prelo escribe sobre…`, `@Prelo ¿qué tengo pendiente?`, un mensaje directo,
+   o una respuesta en el hilo de una pieza para reescribirla ("más corto y sin la cifra"). Aprobar es solo con el botón.
+   Si actualizas una app ya creada, pega de nuevo el manifiesto y **reinstálala** (pide los permisos de historial).
+   Más detalle en [`docs/slack.md`](docs/slack.md).
 
 ## Apuntar Hermes a Prelo
 
