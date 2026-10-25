@@ -98,3 +98,12 @@ def test_registrar_publicacion(pg_url):
             "SELECT peca_id::text, canal, url, id_externo FROM publicacoes WHERE id = %s", (pub.id,)
         ).fetchone()
         assert row == (peca.id, "linkedin", "http://li/1", "urn:1")
+
+
+def test_conectar_pide_keepalive_tcp(monkeypatch):
+    """Sin keepalive, una conexión ociosa cortada por un NAT dejaba colgado el post para siempre."""
+    vistos = {}
+    monkeypatch.setattr("prelo.db.conexao.psycopg.connect", lambda url, **kw: vistos.update(kw) or "conn")
+    assert conectar("postgresql://x", prepare_threshold=0) == "conn"
+    assert vistos["keepalives"] == 1 and vistos["keepalives_idle"] <= 60
+    assert vistos["autocommit"] is True and vistos["prepare_threshold"] == 0

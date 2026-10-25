@@ -64,7 +64,6 @@ def _bucle_agenda(agenda: Any) -> None:
 
 
 def main() -> None:
-    import psycopg
     import uvicorn
     from langfuse import Langfuse
     from langgraph.checkpoint.postgres import PostgresSaver
@@ -134,7 +133,7 @@ def main() -> None:
         },
     )
     # El checkpointer usa su propia conexión (autocommit + dict_row, como exige PostgresSaver).
-    cp_conn = psycopg.connect(settings.DATABASE_URL, autocommit=True, row_factory=dict_row, prepare_threshold=0)
+    cp_conn = conectar(settings.DATABASE_URL, row_factory=dict_row, prepare_threshold=0)
     checkpointer = PostgresSaver(cp_conn)
     checkpointer.setup()
     g["grafo"] = grafo.construir(deps, checkpointer)
