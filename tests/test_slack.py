@@ -76,7 +76,9 @@ def ctx():
     def retomar(*a, **kw):
         chamadas.append(("retomar", *a, kw))
 
-    notificar = slack.registrar(app, iniciar=iniciar, retomar=retomar, repo=RepoFalso(), canal="C1", cliente=cliente)
+    notificar = slack.registrar(
+        app, iniciar=iniciar, retomar=retomar, repo=RepoFalso(), canal="C1", cliente=cliente, en_fondo=lambda fn: fn()
+    )
     return SimpleNamespace(app=app, c=cliente, calls=chamadas, notificar=notificar)
 
 
@@ -101,7 +103,26 @@ def test_comando_llama_a_iniciar(ctx):
 
 
 def test_fallo_de_iniciar_responde_motivo(ctx):
-    assert "sin cupo" in comando(ctx, "falla")[0]
+    resp = comando(ctx, "falla")
+    assert "falla" in resp[0] and "sin cupo" in resp[1]
+
+
+def test_responde_antes_de_terminar_el_trabajo(ctx):
+    pendientes = []
+    ctx.app = AppFalsa()
+    slack.registrar(
+        ctx.app,
+        iniciar=lambda t: ctx.calls.append(("iniciar", t)),
+        retomar=None,
+        repo=RepoFalso(),
+        canal="C1",
+        cliente=ctx.c,
+        en_fondo=pendientes.append,
+    )
+    resp = comando(ctx, "IA local")
+    assert "IA local" in resp[0] and ctx.calls == []  # ya respondió y todavía no corrió el grafo
+    pendientes[0]()
+    assert ctx.calls == [("iniciar", "IA local")]
 
 
 def test_pieza_sin_violaciones(ctx):

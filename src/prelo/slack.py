@@ -6,6 +6,7 @@ No importa el grafo: `iniciar(tema) -> post_id` y `retomar(post_id, decisao, com
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
@@ -87,8 +88,24 @@ def registrar(
     canal: str,
     cliente: Any,
     sugerir: Callable[[], list[dict[str, str]]] | None = None,
+    en_fondo: Callable[[Callable[[], None]], None] | None = None,
 ) -> Callable[[Peca], None]:
-    """Registra los handlers en `app` y devuelve `notificar(peca)`."""
+    """Registra los handlers en `app` y devuelve `notificar(peca)`.
+
+    `en_fondo(fn)` corre el trabajo largo (de 1 a 2 min de agentes) fuera del handler; por defecto, en un hilo.
+    """
+    en_fondo = en_fondo or (lambda fn: threading.Thread(target=fn, daemon=True).start())
+
+    def lanzar(tema: str, respond: Callable[..., Any], **kw: Any) -> None:
+        respond(f"⏳ Recibí el tema: *{tema}*. Investigando y redactando; la pieza aparece en el canal en 1-2 min.")
+
+        def trabajo() -> None:
+            try:
+                iniciar(tema, **kw)
+            except Exception as e:  # noqa: BLE001 - el motivo va al editor
+                respond(f"No pude iniciar el post: {e}")
+
+        en_fondo(trabajo)
 
     def notificar(peca: Peca) -> None:
         cliente.chat_postMessage(channel=canal, text="Pieza pendiente de aprobación", blocks=blocos(peca, repo))
@@ -108,23 +125,12 @@ def registrar(
         if not tema:
             respond("Uso: /prelo <tema> — o /prelo sugerir para recibir 3 temas")
             return
-        try:
-            iniciar(tema)
-        except Exception as e:  # noqa: BLE001 - el motivo va al editor
-            respond(f"No pude iniciar el post: {e}")
-            return
-        respond(f"Recibí el tema: {tema}")
+        lanzar(tema, respond)
 
     @app.action("prelo_escolher")
     def escolher(ack, action, respond):
         ack()
-        tema = action["value"]
-        try:
-            iniciar(tema, origem="sugestao")
-        except Exception as e:  # noqa: BLE001
-            respond(f"No pude iniciar el post: {e}")
-            return
-        respond(f"Recibí el tema: {tema}")
+        lanzar(action["value"], respond, origem="sugestao")
 
     def decidir(decisao, meta, client, comentario=None):
         # `peca_id` elige la pausa: linkedin e instagram pueden esperar aprobación a la vez en el mismo post.

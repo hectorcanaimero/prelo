@@ -135,6 +135,7 @@ def test_prelo_simulado_termina_en_pieza_pendiente_notificada_en_slack():
         repo=repo,
         canal="C1",
         cliente=cliente_slack,
+        en_fondo=lambda fn: fn(),
     )
     buscador = SimpleNamespace(
         buscar=lambda q, max_resultados=5: [{"url": "https://ex.com", "titulo": "Ex", "trecho": "dato"}]
@@ -146,7 +147,7 @@ def test_prelo_simulado_termina_en_pieza_pendiente_notificada_en_slack():
     respuestas: list[str] = []
     handlers["/prelo"](lambda: None, {"text": "agentes"}, respuestas.append)
 
-    assert respuestas == ["Recibí el tema: agentes"]
+    assert len(respuestas) == 1 and "Recibí el tema: *agentes*" in respuestas[0]
     assert len(enviados) == 1 and enviados[0]["channel"] == "C1"
     (peca,) = repo.pecas.values()
     assert peca.status == "pendente" and peca.canal == "linkedin"
