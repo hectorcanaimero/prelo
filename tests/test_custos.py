@@ -108,3 +108,13 @@ def test_traza_lleva_post_id_agente_y_no_la_api_key():
 def test_prelo_modelos_se_lee_como_mapa(monkeypatch):
     monkeypatch.setenv("PRELO_MODELOS", "redator=redactor, tradutor = traductor,mal")
     assert Settings(_env_file=None).PRELO_MODELOS == {"redator": "redactor", "tradutor": "traductor"}
+
+
+def test_precios_desde_config_y_un_solo_aviso(caplog):
+    from prelo.custos import cargar_precios
+
+    cargar_precios("gpt-6-luna=1.25/10, mal, otro=1")
+    assert calcular_usd("cx/gpt-6-luna", 1_000_000, 100_000) == Decimal("2.25")
+    calcular_usd("modelo-nuevo-x", 1, 1)
+    calcular_usd("modelo-nuevo-x", 1, 1)
+    assert caplog.text.count("modelo-nuevo-x") == 1

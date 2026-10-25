@@ -15,7 +15,7 @@ from prelo.agentes.investigador import criar_investigador
 from prelo.agentes.redator import redator
 from prelo.config import Settings
 from prelo.interfaces import Dependencias
-from prelo.marca import carregar_regras, revisar
+from prelo.marca import carregar_regras, formato, revisar
 
 log = logging.getLogger(__name__)
 
@@ -27,8 +27,9 @@ def montar_dependencias(settings: Settings, clientes: dict[str, Any]) -> Depende
     return Dependencias(
         investigar=criar_investigador(modelo, clientes["buscador"]),
         redigir=partial(redator, modelo),
-        adaptar={"linkedin": partial(adaptador_linkedin, modelo)},
+        adaptar={"linkedin": partial(adaptador_linkedin, modelo, formato=regras.linkedin)},
         revisar=lambda texto, fontes: revisar(texto, fontes, regras),
+        formato=lambda texto, canal: formato(texto, getattr(regras, canal, {})),
         notificar=clientes["notificar"],
         repo=clientes["repo"],
     )
@@ -77,6 +78,7 @@ def main() -> None:
     from prelo.api import criar_api
     from prelo.buscador import criar_buscador
     from prelo.conversa import interpretar
+    from prelo.custos import cargar_precios
     from prelo.db.conexao import conectar
     from prelo.db.migrar import aplicar_migracoes
     from prelo.db.repositorio import RepositorioPg
@@ -85,6 +87,7 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO)
     settings = Settings()
+    cargar_precios(settings.PRELO_PRECIOS)
     conn = conectar(settings.DATABASE_URL)
     aplicar_migracoes(conn)
     repo = RepositorioPg(conn)
