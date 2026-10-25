@@ -112,3 +112,9 @@ def test_aviso_de_token_a_7_dias_una_sola_vez():
     b, _, avisos, *_ = montar(token=dt(1, 12, mes=12))
     b.tick()
     assert avisos.textos == []
+
+
+def test_token_con_fecha_sin_zona_no_rompe_el_tick():
+    a, _, avisos, *_ = montar(token=dt(31, 12).replace(tzinfo=None))
+    a.tick()
+    assert any("token" in t.lower() for t in avisos.textos)

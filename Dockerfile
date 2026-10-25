@@ -9,7 +9,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project --no-dev
 
 COPY src ./src
-RUN uv sync --frozen --no-dev --no-editable
+# editable: el código queda en /app/src y marca.toml y templates/ se encuentran desde /app (parents[2])
+RUN uv sync --frozen --no-dev
 
 FROM python:3.12-slim-bookworm AS runtime
 
@@ -17,6 +18,8 @@ WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
+COPY marca.toml ./
+COPY templates ./templates
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
