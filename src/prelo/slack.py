@@ -34,11 +34,11 @@ def blocos(peca: Peca, repo: Repositorio, estado: str | None = None) -> list[dic
         texto = "\n\n".join(f"*{i}. {la['titulo']}*\n{la['texto']}" for i, la in enumerate(peca.conteudo["laminas"], 1))
     else:
         texto = "\n\n".join(t["corpo"] for t in peca.conteudo.values() if isinstance(t, dict) and "corpo" in t)
-    fontes = "\n".join(f"• <{f['url']}|{f['titulo']}>" for f in repo.ler_fontes(peca.post_id)) or "_sin fuentes_"
     custos = repo.custos_por_post(peca.post_id)
     linhas = "".join(f"{ag}: ${c.usd}\n" for ag, c in custos.items())
     total = sum((c.usd for c in custos.values()), Decimal(0))
-    out = [_md(f"*Pieza pendiente ({peca.canal})*\n{texto}"), _md(f"*Fuentes*\n{fontes}")]
+    # Sin la lista de fuentes: Héctor quiere ver solo el post (las fuentes siguen en la base y en Langfuse).
+    out = [_md(f"*Pieza pendiente ({peca.canal})*\n{texto}")]
     if (prob := peca.conteudo.get(PROBABILIDADE)) is not None:  # FR-17
         out.append(_md(f"*Probabilidad de aprobarla sin editar*\n{prob:.0%}"))
     if peca.violacoes:
@@ -111,7 +111,14 @@ def registrar(
         en_fondo(trabajo)
 
     def notificar(peca: Peca) -> None:
-        cliente.chat_postMessage(channel=canal, text="Pieza pendiente de aprobación", blocks=blocos(peca, repo))
+        # Sin previsualizar links: Slack los expandía en tarjetas con imagen debajo del post.
+        cliente.chat_postMessage(
+            channel=canal,
+            text="Pieza pendiente de aprobación",
+            blocks=blocos(peca, repo),
+            unfurl_links=False,
+            unfurl_media=False,
+        )
 
     @app.command("/prelo")
     def comando(ack, command, respond):
@@ -207,7 +214,12 @@ def registrar(
             texto = re.sub(r"<@[A-Z0-9]+>", "", texto).strip()
 
             def responder(t: str) -> Any:
-                return say(text=t, thread_ts=None if dm and not hilo else hilo or event["ts"])
+                return say(
+                    text=t,
+                    thread_ts=None if dm and not hilo else hilo or event["ts"],
+                    unfurl_links=False,
+                    unfurl_media=False,
+                )
 
             try:
                 atender(texto, pieza, client, responder)

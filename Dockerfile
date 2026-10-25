@@ -20,6 +20,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
 COPY marca.toml ./
 COPY templates ./templates
+COPY skills ./skills
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
