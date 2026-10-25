@@ -26,7 +26,7 @@ class ModeloRouter:
         repo: Repositorio,
         *,
         modelo_por_agente: dict[str, str] | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,  # con 4096 la pieza madre del blog en JSON salía cortada
     ) -> None:
         self._openai = openai
         self._langfuse = langfuse

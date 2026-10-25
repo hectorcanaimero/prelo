@@ -37,6 +37,7 @@ def redator(modelo: Modelo, tema: str, fontes: list[Fonte], feedback: str | None
         s = s.partition("\n")[2].rsplit("```", 1)[0]
     try:
         d = json.loads(s)
-        return Texto(titulo=d["titulo"], resumo=d["resumo"], corpo=d["corpo"])
+        # el modelo a veces escribe la clave en español ("resumen") aunque el prompt pida "resumo"
+        return Texto(titulo=d["titulo"], resumo=d["resumo"] if "resumo" in d else d["resumen"], corpo=d["corpo"])
     except (ValueError, KeyError, TypeError) as e:
         raise ValueError(f"salida del redator no válida ({e!r}): {bruto[:500]!r}") from e
