@@ -23,6 +23,9 @@ class AppFalsa:
     def view(self, nome):
         return lambda f: self.h.setdefault(nome, f)
 
+    def event(self, nome):
+        return lambda f: self.h.setdefault(f"event:{nome}", f)
+
 
 class ClienteFalso:
     def __init__(self):
@@ -37,6 +40,12 @@ class ClienteFalso:
     def views_open(self, **kw):
         self.modais.append(kw)
 
+    def conversations_replies(self, **kw):
+        """El hilo "1.0" cuelga de una pieza con botones; cualquier otro, de un mensaje normal."""
+        if kw["ts"] != "1.0":
+            return {"messages": [{"text": "hola"}]}
+        return {"messages": [{"blocks": slack.blocos(peca(), RepoFalso())}]}
+
 
 class RepoFalso:
     def ler_fontes(self, post_id):
@@ -50,6 +59,12 @@ class RepoFalso:
 
     def ler_peca(self, peca_id):
         return peca()
+
+    def listar_pecas(self, *, status, canal):
+        return [peca()] if canal == "linkedin" else []
+
+    def ler_post(self, post_id):
+        return SimpleNamespace(tema="evals en producción")
 
 
 def peca(violacoes=()):
@@ -174,3 +189,70 @@ def test_editar_abre_modal_y_envia(ctx):
     ctx.app.h[modal["callback_id"]](ack=lambda: None, view=view, client=ctx.c)
     assert ctx.calls == [("retomar", "post1", "editar", "más corto", {"peca_id": "peca1"})]
     assert ctx.c.atualizados
+
+
+@pytest.fixture
+def charla():
+    """Prelo conversacional con un `conversar` falso que devuelve lo que diga `ctx.r`."""
+    app, cliente, calls = AppFalsa(), ClienteFalso(), []
+    estado = SimpleNamespace(r={"accion": "charla", "tema": "", "comentario": "", "respuesta": "hola"}, vistos=[])
+
+    def conversar(texto, en_hilo):
+        estado.vistos.append((texto, en_hilo))
+        return estado.r
+
+    slack.registrar(
+        app,
+        iniciar=lambda tema, **kw: calls.append(("iniciar", tema)),
+        retomar=lambda *a, **kw: calls.append(("retomar", *a, kw)),
+        repo=RepoFalso(),
+        canal="C1",
+        cliente=cliente,
+        en_fondo=lambda fn: fn(),
+        conversar=conversar,
+        bot_id="UBOT",
+    )
+    dichos = []
+
+    def decir(text, **evento):
+        ev = {"channel": "C1", "ts": "9.9", "text": text, **evento}
+        app.h["event:message"](event=ev, say=lambda **kw: dichos.append(kw), client=cliente)
+        return dichos
+
+    return SimpleNamespace(estado=estado, calls=calls, decir=decir, dichos=dichos, c=cliente)
+
+
+def test_en_el_canal_ignora_lo_que_no_es_para_prelo(charla):
+    assert charla.decir("hola equipo") == []
+    assert charla.decir("respuesta en otro hilo", thread_ts="5.0") == []
+    assert charla.decir("<@UBOT> soy un bot", bot_id="B1") == []
+    assert charla.estado.vistos == []
+
+
+def test_mencion_inicia_un_post_y_responde_en_hilo(charla):
+    charla.estado.r = {"accion": "iniciar", "tema": "memoria de agentes", "comentario": "", "respuesta": ""}
+    dichos = charla.decir("<@UBOT> escribe sobre memoria de agentes")
+    assert charla.estado.vistos == [("escribe sobre memoria de agentes", False)]
+    assert ("iniciar", "memoria de agentes") in charla.calls
+    assert "memoria de agentes" in dichos[0]["text"] and dichos[0]["thread_ts"] == "9.9"
+
+
+def test_dm_pide_pendientes(charla):
+    charla.estado.r = {"accion": "pendientes", "tema": "", "comentario": "", "respuesta": ""}
+    dichos = charla.decir("¿qué tengo pendiente?", channel_type="im")
+    assert "evals en producción" in dichos[0]["text"] and dichos[0]["thread_ts"] is None
+
+
+def test_respuesta_en_hilo_de_pieza_edita_con_el_comentario(charla):
+    charla.estado.r = {"accion": "editar", "tema": "", "comentario": "más corto", "respuesta": ""}
+    charla.decir("hazlo más corto", thread_ts="1.0")
+    assert charla.estado.vistos == [("hazlo más corto", True)]
+    assert ("retomar", "post1", "editar", "más corto", {"peca_id": "peca1"}) in charla.calls
+    assert charla.c.atualizados[0]["ts"] == "1.0"
+
+
+def test_publicar_por_mensaje_nunca_aprueba(charla):
+    charla.estado.r = {"accion": "aprobar", "tema": "", "comentario": "", "respuesta": ""}
+    dichos = charla.decir("dale, publícalo", thread_ts="1.0")
+    assert not [c for c in charla.calls if c[0] == "retomar"]
+    assert "Aprobar" in dichos[0]["text"]

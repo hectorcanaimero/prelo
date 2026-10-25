@@ -1,4 +1,4 @@
-"""App de Slack (Socket Mode): `/prelo <tema>` y aprobación de piezas con botones.
+"""App de Slack (Socket Mode): `/prelo <tema>`, conversación con `@Prelo` y aprobación de piezas con botones.
 
 No importa el grafo: `iniciar(tema) -> post_id` y `retomar(post_id, decisao, comentario=None)` llegan inyectados.
 """
@@ -6,6 +6,7 @@ No importa el grafo: `iniciar(tema) -> post_id` y `retomar(post_id, decisao, com
 from __future__ import annotations
 
 import json
+import re
 import threading
 from collections.abc import Callable
 from decimal import Decimal
@@ -89,6 +90,8 @@ def registrar(
     cliente: Any,
     sugerir: Callable[[], list[dict[str, str]]] | None = None,
     en_fondo: Callable[[Callable[[], None]], None] | None = None,
+    conversar: Callable[[str, bool], dict[str, str]] | None = None,
+    bot_id: str | None = None,
 ) -> Callable[[Peca], None]:
     """Registra los handlers en `app` y devuelve `notificar(peca)`.
 
@@ -147,6 +150,69 @@ def registrar(
             decidir(decisao, meta, client)
 
         return handler
+
+    def pieza_del_hilo(client: Any, channel: str, thread_ts: str) -> dict[str, str] | None:
+        """Si el hilo cuelga de una pieza con botones, sus ids (están en el `value` de los botones)."""
+        msgs = client.conversations_replies(channel=channel, ts=thread_ts, limit=1).get("messages") or []
+        for b in (msgs[0].get("blocks") or []) if msgs else []:
+            for e in b.get("elements", []) if b.get("type") == "actions" else []:
+                if e.get("action_id") in ("prelo_aprovar", "prelo_editar", "prelo_descartar"):
+                    return {**json.loads(e["value"]), "channel": channel, "ts": thread_ts}
+        return None
+
+    def pendientes() -> str:
+        pecas = [p for canal in ("linkedin", "instagram") for p in repo.listar_pecas(status="pendente", canal=canal)]
+        if not pecas:
+            return "No tienes piezas pendientes. ¿Escribimos algo? Dime un tema."
+        linhas = [f"• *{p.canal}*: {repo.ler_post(p.post_id).tema}" for p in pecas]
+        return "Pendientes de tu aprobación (están en el canal con sus botones):\n" + "\n".join(linhas)
+
+    def atender(texto: str, pieza: dict[str, str] | None, client: Any, responder: Callable[[str], Any]) -> None:
+        assert conversar is not None
+        r = conversar(texto, pieza is not None)
+        accion = r["accion"]
+        if accion == "iniciar" and r["tema"]:
+            lanzar(r["tema"], responder)
+        elif accion == "pendientes":
+            responder(pendientes())
+        elif accion == "sugerir" and sugerir:
+            temas = sugerir()[:3]
+            responder("Ideas:\n" + "\n".join(f"• *{t['tema']}* ({t['origem']})" for t in temas))
+        elif accion == "editar" and pieza and r["comentario"]:
+            responder(f"✏️ La reescribo con: _{r['comentario']}_")
+            decidir("editar", pieza, client, r["comentario"])
+        elif accion == "editar":
+            responder("Para editar una pieza, respóndeme en el hilo de esa pieza con el cambio que quieres.")
+        elif accion == "aprobar":
+            responder("Eso lo decides tú: usa el botón ✅ *Aprobar* de la pieza. Yo no publico nada sin ese clic.")
+        else:
+            responder(
+                r["respuesta"]
+                or "Puedo escribir un post (dime el tema), contarte qué está pendiente, sugerirte temas o "
+                "reescribir una pieza si me respondes en su hilo. Aprobar es con el botón."
+            )
+
+    if conversar:
+
+        @app.event("message")
+        def mensaje(event, say, client):
+            if event.get("subtype") or event.get("bot_id"):
+                return  # ediciones, uniones al canal y mensajes de bots (incluido Prelo)
+            texto, canal, hilo = event.get("text") or "", event["channel"], event.get("thread_ts")
+            dm = event.get("channel_type") == "im"
+            mencion = bool(bot_id) and f"<@{bot_id}>" in texto
+            pieza = pieza_del_hilo(client, canal, hilo) if hilo and not dm else None
+            if not (dm or mencion or pieza):
+                return  # en el canal solo atiende menciones y respuestas en el hilo de una pieza
+            texto = re.sub(r"<@[A-Z0-9]+>", "", texto).strip()
+
+            def responder(t: str) -> Any:
+                return say(text=t, thread_ts=None if dm and not hilo else hilo or event["ts"])
+
+            try:
+                atender(texto, pieza, client, responder)
+            except Exception as e:  # noqa: BLE001 - el motivo va al editor
+                responder(f"Algo falló: {e}")
 
     app.action("prelo_aprovar")(accion("aprovado"))
     app.action("prelo_descartar")(accion("descartar"))

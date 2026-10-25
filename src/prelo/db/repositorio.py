@@ -132,7 +132,7 @@ class RepositorioPg:
             "INSERT INTO custos (post_id, agente, modelo, tokens_entrada, tokens_saida, usd, criado_em)"
             " VALUES (%s, %s, %s, %s, %s, %s, %s)",
             (
-                custo.post_id,
+                custo.post_id or None,  # sin post (conversación, sugerencias): NULL
                 custo.agente,
                 custo.modelo,
                 custo.tokens_entrada,

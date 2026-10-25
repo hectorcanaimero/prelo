@@ -77,6 +77,7 @@ def main() -> None:
     from prelo.agenda import Agenda
     from prelo.api import criar_api
     from prelo.buscador import criar_buscador
+    from prelo.conversa import interpretar
     from prelo.db.conexao import conectar
     from prelo.db.migrar import aplicar_migracoes
     from prelo.db.repositorio import RepositorioPg
@@ -120,6 +121,8 @@ def main() -> None:
         repo=repo,
         canal=settings.SLACK_CANAL,
         cliente=app_slack.client,
+        conversar=lambda texto, en_hilo: interpretar(modelo, texto, en_hilo_de_pieza=en_hilo),
+        bot_id=app_slack.client.auth_test()["user_id"],
     )
     deps = montar_dependencias(
         settings,
